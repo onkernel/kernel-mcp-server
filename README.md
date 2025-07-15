@@ -243,7 +243,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Issues & Bugs**: [GitHub Issues](https://github.com/onkernel/kernel-mcp-server/issues)
 - **MCP Feedback**: [github.com/kernelxyz/mcp-feedback](https://github.com/kernelxyz/mcp-feedback)
 - **Documentation**: [Kernel Docs](https://docs.onkernel.com) • [MCP Setup Guide](https://docs.onkernel.com/mcp)
-- **Community**: [Kernel Discord](https://discord.gg/kernel) (coming soon)
+- **Community**: [Kernel Discord](https://discord.gg/FBrveQRcud)
 
 ---
 
