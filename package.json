@@ -1,0 +1,59 @@
+{
+  "name": "kernel-mcp-server",
+  "description": "A Model Context Protocol (MCP) server that provides access to Kernel platform tools",
+  "version": "0.1.0",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/onkernel/kernel-mcp-server.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "kernel",
+    "ai",
+    "automation"
+  ],
+  "author": "Kernel Team",
+  "license": "MIT",
+  "homepage": "https://github.com/onkernel/kernel-mcp-server",
+  "bugs": {
+    "url": "https://github.com/onkernel/kernel-mcp-server/issues"
+  },
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "lint": "next lint",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md}\""
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^6.24.0",
+    "@clerk/themes": "^2.2.56",
+    "@onkernel/sdk": "^0.7.1",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/redis": "^4.0.11",
+    "@vercel/mcp-adapter": "^0.11.2",
+    "install": "^0.13.0",
+    "jose": "^6.0.11",
+    "jsonwebtoken": "^9.0.2",
+    "jszip": "^3.10.1",
+    "next": "^15.3.5",
+    "next-themes": "^0.4.4",
+    "prettier": "^3.6.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "redis": "^5.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "@types/jszip": "^3.4.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5"
+  }
+}
