@@ -654,7 +654,6 @@ const handler = createMcpHandler((server) => {
         .describe(
           'Filter results to show only deployments for this specific application name (e.g., "my-web-scraper")',
         )
-        .optional(),
     },
     async ({ app_name }, extra) => {
       if (!extra.authInfo) {
