@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/onkernel-kernel-mcp-server-badge.png)](https://mseep.ai/app/onkernel-kernel-mcp-server)
+
 # Kernel MCP Server
 
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
