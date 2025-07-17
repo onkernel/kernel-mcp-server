@@ -32,16 +32,18 @@ The easiest way to get started is using our hosted service at `https://mcp.onker
 
 ### Claude
 
-**Team & Enterprise (Claude.ai):**
+#### Team & Enterprise (Claude.ai)
 
-1. Go to Settings → Integrations → Add more
-2. Fill in:
-   - Integration name: `Kernel`
-   - Integration URL: `https://mcp.onkernel.com/mcp`
-3. Start a chat, enable Tools, and finish auth
+1. Navigate to **Settings** in the sidebar (web or desktop).
+2. Scroll to **Integrations** and click **Add more**.
+3. Fill in:
+   - **Integration name:** `Kernel`
+   - **Integration URL:** `https://mcp.onkernel.com/mcp`
+4. Start a chat, enable **Tools**, and finish auth.
 
-**Free & Pro (Claude Desktop):**
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+#### Free & Pro (Claude desktop)
+
+Open `~/Library/Application Support/Claude/claude_desktop_config.json` and add:
 
 ```json
 {
@@ -54,38 +56,71 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Restart Claude Desktop.
+Restart the Claude desktop app.
 
-**Claude Code CLI:**
+#### Claude Code CLI
 
 ```bash
 claude mcp add --transport http kernel https://mcp.onkernel.com/mcp
-/mcp   # run inside a REPL to start auth
+# then, inside the REPL:
+/mcp   # to run through auth
 ```
 
 ### Cursor
 
-Install via Cursor → MCP tools, or [click to install in Cursor](cursor://mcp-install?url=https://mcp.onkernel.com/mcp&name=kernel).
+[Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=kernel&config=eyJ1cmwiOiJodHRwczovL21jcC5vbmtlcm5lbC5jb20vbWNwIn0%3D)
 
-Alternatively, run:
+#### Manual Setup
 
-```bash
-npx -y mcp-remote https://mcp.onkernel.com/mcp
+1. Press **⌘/Ctrl Shift J** to open settings.
+2. Click **Tools & Integrations**.
+3. Click **New MCP server**.
+4. Add the following configuration:
+
+```json
+{
+  "mcpServers": {
+    "kernel": {
+      "url": "https://mcp.onkernel.com/mcp"
+    }
+  }
+}
 ```
+
+5. Save and the server will be available.
 
 ### Goose
 
-Install via Goose → MCP tools, or [click to install in Goose](goose://extension?cmd=npx&arg=-y&arg=mcp-remote&arg=https%3A//mcp.onkernel.com/mcp&name=kernel&description=Kernel%20MCP%20Server).
+[Add to Goose](goose://extension?cmd=npx&arg=-y&arg=mcp-remote&arg=https%3A%2F%2Fmcp.onkernel.com%2Fmcp&timeout=300&id=kernel&name=Kernel&description=Access%20Kernel%27s%20cloud-based%20browsers%20via%20MCP)
 
-Alternatively, run:
+#### Goose Desktop
 
-```bash
-goose mcp add kernel https://mcp.onkernel.com/mcp
-```
+1. Click `...` in the top right corner of the Goose Desktop.
+2. Select `Advanced Settings` from the menu.
+3. Under `Extensions`, click `Add custom extension`.
+4. On the `Add custom extension` modal, enter:
+   - **Type**: `Streaming HTTP`
+   - **ID**: `kernel`
+   - **Name**: `Kernel`
+   - **Description**: `Access Kernel's cloud-based browsers via MCP`
+   - **URL**: `https://mcp.onkernel.com/mcp`
+   - **Timeout**: `300`
+5. Click `Add` button.
+
+#### Goose CLI
+
+1. Run the following command:
+   ```bash
+   goose configure
+   ```
+2. Select `Add Extension` from the menu.
+3. Choose `Remote Extension (Streaming HTTP)`.
+4. Follow the prompts:
+   - **Extension name**: `Kernel`
+   - **URL**: `https://mcp.onkernel.com/mcp`
+   - **Timeout**: `300`
 
 ### Visual Studio Code
-
-In `settings.json`:
 
 ```json
 {
@@ -98,12 +133,20 @@ In `settings.json`:
 }
 ```
 
-Use ⌘/Ctrl+P → MCP: Add Server → Command (stdio), paste the command, name it Kernel, and start via MCP: List Servers.
+1. Press **⌘/Ctrl P** → search **MCP: Add Server**.
+2. Select **Command (stdio)**.
+3. Enter:
+   ```bash
+   npx -y mcp-remote https://mcp.onkernel.com/mcp
+   ```
+4. Name the server **Kernel** and press Enter.
+5. Activate via **MCP: List Servers → Kernel → Start Server**.
 
 ### Windsurf
 
-1. ⌘/Ctrl , → Cascade → MCP servers → Add custom server
-2. Paste:
+1. Press **⌘/Ctrl ,** to open settings.
+2. Navigate **Cascade → MCP servers** → **Add custom server**.
+3. Paste:
 
 ```json
 {
@@ -118,7 +161,7 @@ Use ⌘/Ctrl+P → MCP: Add Server → Command (stdio), paste the command, name 
 
 ### Zed
 
-In `settings.json`:
+Open `settings.json` and add:
 
 ```json
 {
@@ -135,13 +178,15 @@ In `settings.json`:
 }
 ```
 
-### Other MCP Clients
+### Others
 
-Most modern MCP-capable tools accept:
+Many other MCP-capable tools accept:
 
-- **Command**: `npx`
-- **Arguments**: `-y mcp-remote https://mcp.onkernel.com/mcp`
-- **Environment**: (none)
+- **Command:** `npx`
+- **Arguments:** `-y mcp-remote https://mcp.onkernel.com/mcp`
+- **Environment:** _(none)_
+
+Configure these values wherever the tool expects MCP server settings.
 
 ## 🛠️ Available MCP Tools
 
