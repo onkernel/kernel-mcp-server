@@ -100,3 +100,6 @@ temp/
 
 # Makefiles
 Makefile
+
+# Redis
+**/*.rdb
