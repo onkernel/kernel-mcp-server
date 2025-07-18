@@ -18,6 +18,9 @@ export const metadata: Metadata = {
     'Chromium',
     'headless browser'
   ],
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
