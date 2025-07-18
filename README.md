@@ -12,7 +12,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that p
 
 The Kernel MCP Server bridges AI assistants (like Claude, Cursor, or other MCP-compatible tools) with the Kernel platform, enabling them to:
 
-- 🚀 Deploy and manage applications in the cloud
+- 🚀 Deploy and manage Kernel apps in the cloud
 - 🌐 Launch and control headless Chromium sessions for web automation
 - 📊 Monitor deployments and track invocations
 - 🔍 Search Kernel documentation and inject context
@@ -194,9 +194,9 @@ The server provides these tools for AI assistants:
 
 ### Application Management
 
-- `deploy_application` - Deploy TypeScript or Python applications to Kernel
-- `list_apps` - List applications in your Kernel workspace
-- `invoke_action` - Execute actions in Kernel applications
+- `deploy_app` - Deploy TypeScript or Python apps to Kernel
+- `list_apps` - List apps in your Kernel workspace
+- `invoke_action` - Execute actions in Kernel apps
 - `get_deployment` - Get deployment status and logs
 - `list_deployments` - List all deployments
 - `get_invocation` - Get action invocation details
@@ -217,8 +217,8 @@ The server provides these tools for AI assistants:
 ### Basic App Management
 
 ```
-Human: List my Kernel applications
-Assistant: I'll check your Kernel applications for you.
+Human: List my Kernel apps
+Assistant: I'll check your Kernel apps for you.
 [Uses list_apps tool]
 ```
 

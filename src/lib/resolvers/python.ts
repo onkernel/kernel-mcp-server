@@ -332,7 +332,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "${projectName}"
 version = "1.0.0"
-description = "Kernel Python application"
+description = "Kernel Python app"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
@@ -345,7 +345,7 @@ ${Object.entries(dependencies)
     // Generate a simple README
     const readme = `# ${projectName}
 
-A Python application deployed to Kernel.
+A Python app deployed to Kernel.
 
 ## Installation
 

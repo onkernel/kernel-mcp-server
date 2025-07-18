@@ -167,18 +167,18 @@ const handler = createMcpHandler((server) => {
   // List Apps Tool
   server.tool(
     "list_apps",
-    "List all applications deployed in the Kernel platform. Use this to discover available apps, check their versions, or filter by specific criteria. Helpful for understanding what applications are available before invoking actions.",
+    "List all apps deployed in the Kernel platform. Use this to discover available apps, check their versions, or filter by specific criteria. Helpful for understanding what apps are available before invoking actions.",
     {
       app_name: z
         .string()
         .describe(
-          'Filter results to show only applications with this exact name (e.g., "my-web-scraper")',
+          'Filter results to show only apps with this exact name (e.g., "my-web-scraper")',
         )
         .optional(),
       version: z
         .string()
         .describe(
-          'Filter results to show only applications with this exact version label (e.g., "v1.0.0", "latest")',
+          'Filter results to show only apps with this exact version label (e.g., "v1.0.0", "latest")',
         )
         .optional(),
     },
@@ -204,7 +204,7 @@ const handler = createMcpHandler((server) => {
               type: "text",
               text: result
                 ? JSON.stringify({ apps: result }, null, 2)
-                : "No applications found",
+                : "No apps found",
             },
           ],
         };
@@ -224,7 +224,7 @@ const handler = createMcpHandler((server) => {
   // Invoke Action Tool
   server.tool(
     "invoke_action",
-    "Execute a specific action within a Kernel application. This is the primary way to interact with deployed applications - use this to trigger workflows, run computations, or perform operations. The action will run asynchronously and you can track its progress with the returned invocation ID.",
+    "Execute a specific action within a Kernel app. This is the primary way to interact with deployed apps - use this to trigger workflows, run computations, or perform operations. The action will run asynchronously and you can track its progress with the returned invocation ID.",
     {
       app_name: z
         .string()
@@ -523,7 +523,7 @@ const handler = createMcpHandler((server) => {
   // Get Deployment Tool
   server.tool(
     "get_deployment",
-    "Retrieve comprehensive information about a specific deployment including its current status, build logs, configuration, and health metrics. Use this to monitor deployment progress, troubleshoot deployment issues, or verify that an application was deployed successfully.",
+    "Retrieve comprehensive information about a specific deployment including its current status, build logs, configuration, and health metrics. Use this to monitor deployment progress, troubleshoot deployment issues, or verify that an app was deployed successfully.",
     {
       id: z
         .string()
@@ -658,12 +658,12 @@ const handler = createMcpHandler((server) => {
   // List Deployments Tool
   server.tool(
     "list_deployments",
-    "Retrieve a comprehensive list of all deployments in the Kernel platform, with optional filtering by application name. This provides an overview of deployment history, current status, and allows you to track the deployment lifecycle of your applications. Use this to monitor deployment activity or find specific deployments.",
+    "Retrieve a comprehensive list of all deployments in the Kernel platform, with optional filtering by app name. This provides an overview of deployment history, current status, and allows you to track the deployment lifecycle of your apps. Use this to monitor deployment activity or find specific deployments.",
     {
       app_name: z
         .string()
         .describe(
-          'Filter results to show only deployments for this specific application name (e.g., "my-web-scraper")',
+          'Filter results to show only deployments for this specific app name (e.g., "my-web-scraper")',
         ),
     },
     async ({ app_name }, extra) => {
@@ -704,10 +704,10 @@ const handler = createMcpHandler((server) => {
     },
   );
 
-  // Deploy Application Tool
+  // Deploy App Tool
   server.tool(
-    "deploy_application",
-    "Deploy TypeScript or Python applications to Kernel. Provide the file name and its contents, and this tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel. Note: When deploying applications, it may take a moment to process and fill in the code parameter - please inform the user that the deployment is being prepared, and only call this tool after all parameters have finished being filled.",
+    "deploy_app",
+    "Deploy TypeScript or Python apps to Kernel. Provide the file name and its contents, and this tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel. Note: When deploying apps, it may take a moment to process and fill in the code parameter - please inform the user that the deployment is being prepared, and only call this tool after all parameters have finished being filled.",
     {
       filename: z
         .string()
@@ -953,7 +953,7 @@ const handler = createMcpHandler((server) => {
           content: [
             {
               type: "text",
-              text: `Error deploying application: ${err}`,
+              text: `Error deploying app: ${err}`,
             },
           ],
         };
