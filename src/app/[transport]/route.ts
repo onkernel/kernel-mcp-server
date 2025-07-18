@@ -6,6 +6,16 @@ import { verifyToken } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { Kernel } from "@onkernel/sdk";
 import { z } from "zod";
+import { promises as fs, createReadStream } from "fs";
+import path from "path";
+import os from "os";
+import JSZip from "jszip";
+import {
+  resolveDependencies,
+  generateProjectFiles,
+  mergeDependencies,
+  detectLanguage,
+} from "@/lib/dependency-resolver";
 
 export async function OPTIONS(_req: NextRequest): Promise<Response> {
   return new Response(null, {
@@ -653,7 +663,7 @@ const handler = createMcpHandler((server) => {
         .string()
         .describe(
           'Filter results to show only deployments for this specific application name (e.g., "my-web-scraper")',
-        )
+        ),
     },
     async ({ app_name }, extra) => {
       if (!extra.authInfo) {
@@ -689,6 +699,261 @@ const handler = createMcpHandler((server) => {
             },
           ],
         };
+      }
+    },
+  );
+
+  // Deploy Application Tool
+  server.tool(
+    "deploy_application",
+    "Deploy a new TypeScript or Python application to Kernel from a single source file. Provide the file name and its contents, and this tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel. Note: When deploying applications, it may take a moment to process and fill in the code parameter - please inform the user that the deployment is being prepared, and only call this tool after all parameters have finished being filled.",
+    {
+              filename: z
+        .string()
+        .describe("File name of the entrypoint (e.g. 'index.ts', 'main.py')"),
+              code: z
+        .string()
+        .describe("Full contents of the entrypoint source file (TypeScript or Python)"),
+      dependencies: z
+        .record(z.string(), z.string())
+        .describe(
+          "Map of package names to exact version strings for production dependencies only. These override auto-discovered runtime dependencies. Do not include dev dependencies.",
+        ),
+      version: z
+        .string()
+        .describe("Optional: Version label to deploy (default 'latest')")
+        .optional(),
+      force: z
+        .boolean()
+        .describe(
+          "If true, allow overwriting an existing version with the same label (default false)",
+        )
+        .optional(),
+    },
+    async (
+      { filename, code, version, force, dependencies: providedDependencies },
+      extra,
+    ) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const client = new Kernel({
+        apiKey: extra.authInfo.token,
+        baseURL: process.env.API_BASE_URL,
+      });
+
+      // Create minimal project structure and zip it in-memory
+      const entrypointRelPath = path.posix.join("src", filename);
+
+      // Resolve dependencies from import statements
+      const { discoveredPackages, dependencies: discoveredDependencies } =
+        await resolveDependencies(code, filename, providedDependencies);
+
+      // Merge auto-discovered and explicitly provided dependencies
+      const resolvedDependencies = mergeDependencies(
+        discoveredDependencies,
+        providedDependencies,
+        filename,
+      );
+
+      // Generate project files based on detected language
+      const projectFiles = generateProjectFiles(
+        filename,
+        entrypointRelPath,
+        resolvedDependencies,
+      );
+
+      const zip = new JSZip();
+      // Add all generated project files
+      Object.entries(projectFiles).forEach(([filePath, content]) => {
+        zip.file(filePath, content);
+      });
+      zip.file(entrypointRelPath, code);
+
+      const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+
+      // Write buffer to a temporary location so we can stream it
+      const tmpZipPath = path.join(os.tmpdir(), `kernel_${Date.now()}.zip`);
+      await fs.writeFile(tmpZipPath, zipBuffer);
+
+      try {
+        const response = await client.deployments.create(
+          {
+            file: createReadStream(tmpZipPath),
+            entrypoint_rel_path: entrypointRelPath,
+            version: version ?? "latest",
+            force: force ?? false,
+          },
+          { maxRetries: 0 },
+        );
+
+        // Follow deployment events via stream
+        let logMessages: string[] = [];
+        let finalDeployment = response;
+        let appVersionInfo: any = null;
+
+        try {
+          const stream = await client.deployments.follow(response.id);
+
+          for await (const event of stream) {
+            switch (event.event) {
+              case "log":
+                const logMessage = event.message?.replace(/\n$/, "") || "";
+                logMessages.push(`LOG: ${logMessage}`);
+                break;
+
+              case "deployment_state":
+                finalDeployment = event.deployment || finalDeployment;
+
+                if (
+                  finalDeployment.status === "failed" ||
+                  finalDeployment.status === "stopped"
+                ) {
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify(
+                          {
+                            status: "failed",
+                            deployment: finalDeployment,
+                            logs: logMessages,
+                            discovered_packages: discoveredPackages,
+                            resolved_dependencies: resolvedDependencies,
+                            error: `Deployment ${finalDeployment.status}: ${finalDeployment.status_reason || "Unknown error"}`,
+                          },
+                          null,
+                          2,
+                        ),
+                      },
+                    ],
+                  };
+                }
+
+                if (finalDeployment.status === "running") {
+                  // Deployment completed successfully
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify(
+                          {
+                            status: "success",
+                            deployment: finalDeployment,
+                            app_info: appVersionInfo,
+                            logs: logMessages,
+                            discovered_packages: discoveredPackages,
+                            resolved_dependencies: resolvedDependencies,
+                            message: "✔ Deployment completed successfully",
+                          },
+                          null,
+                          2,
+                        ),
+                      },
+                    ],
+                  };
+                }
+                break;
+
+              case "app_version_summary":
+                appVersionInfo = {
+                  app_name: event.app_name,
+                  version: event.version,
+                  actions: event.actions || [],
+                };
+
+                if (event.actions && event.actions.length > 0) {
+                  const firstAction = event.actions[0].name;
+                  logMessages.push(
+                    `App "${event.app_name}" deployed (version: ${event.version})`,
+                  );
+                  logMessages.push(
+                    `Invoke with: kernel invoke ${event.app_name} ${firstAction} --payload '{...}'`,
+                  );
+                }
+                break;
+
+              case "error":
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: JSON.stringify(
+                        {
+                          status: "error",
+                          deployment: finalDeployment,
+                          logs: logMessages,
+                          discovered_packages: discoveredPackages,
+                          resolved_dependencies: resolvedDependencies,
+                          error: `${event.error?.code || "Unknown"}: ${event.error?.message || "Unknown error"}`,
+                        },
+                        null,
+                        2,
+                      ),
+                    },
+                  ],
+                };
+            }
+          }
+
+          // If we exit the loop without a final state, return what we have
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    status: "unknown",
+                    deployment: finalDeployment,
+                    app_info: appVersionInfo,
+                    logs: logMessages,
+                    discovered_packages: discoveredPackages,
+                    resolved_dependencies: resolvedDependencies,
+                    message:
+                      "Deployment stream ended without clear final state",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (streamError) {
+          // If streaming fails, return the initial deployment response with error info
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    status: "stream_error",
+                    deployment: response,
+                    logs: logMessages,
+                    discovered_packages: discoveredPackages,
+                    resolved_dependencies: resolvedDependencies,
+                    error: `Stream error: ${streamError instanceof Error ? streamError.message : "Unknown streaming error"}`,
+                    message: "Deployment initiated but streaming failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        }
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error deploying application: ${err}`,
+            },
+          ],
+        };
+      } finally {
+        // Clean up temporary zip file
+        await fs.unlink(tmpZipPath).catch(() => {});
       }
     },
   );

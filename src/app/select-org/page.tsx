@@ -1,9 +1,9 @@
 'use client';
 
 import { OrganizationMembershipResource } from '@clerk/types';
-import { useAuth, useOrganizationList, useUser } from '@clerk/nextjs';
+import { useAuth, useOrganizationList, useUser, CreateOrganization } from '@clerk/nextjs';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { Col } from '@/components/col'
 import { Row } from '@/components/row'
 
@@ -19,6 +19,16 @@ function SelectOrgContent(): React.ReactElement {
   const router = useRouter();
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgId || null);
+
+  // Check if we just returned from org creation and reload to get fresh data
+  useEffect(() => {
+    if (searchParams.get('org_created') === 'true') {
+      // Remove the flag from URL and reload to get fresh organization data
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('org_created');
+      window.location.href = newUrl.toString();
+    }
+  }, [searchParams]);
 
   // Get the original OAuth parameters from the URL
   const originalParams = {
@@ -79,16 +89,18 @@ function SelectOrgContent(): React.ReactElement {
     return (
       <Col className="min-h-screen items-center justify-center">
         <Col className="text-center max-w-md mx-auto p-6 gap-6">
-          <h1 className="text-2xl font-bold text-foreground">No Organizations Found</h1>
+          <h1 className="text-2xl font-bold text-foreground">Create Organization</h1>
           <p className="text-muted-foreground">
             You need to be a member of at least one organization to continue with authorization.
           </p>
-          <a 
-            href="/" 
-            className="inline-block bg-primary text-primary-foreground px-4 py-2 rounded-md hover:opacity-80 transition-opacity"
-          >
-            Go to Dashboard
-          </a>
+          <CreateOrganization 
+            afterCreateOrganizationUrl={(() => {
+              const params = new URLSearchParams(searchParams.toString());
+              params.set('org_created', 'true');
+              return `/select-org?${params.toString()}`;
+            })()}
+            skipInvitationScreen={true}
+          />
         </Col>
       </Col>
     );

@@ -93,5 +93,5 @@ export async function deleteOrgIdForJwt({
   const hashedJwt = hashJwt(jwt);
   await client.del(hashedJwt);
 }
-
 export { client as redisClient };
+
