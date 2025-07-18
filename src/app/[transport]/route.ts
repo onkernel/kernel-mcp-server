@@ -706,7 +706,7 @@ const handler = createMcpHandler((server) => {
   // Deploy Application Tool
   server.tool(
     "deploy_application",
-    "Deploy a new TypeScript or Python application to Kernel from a single source file. Provide the file name and its contents, and this tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel. Note: When deploying applications, it may take a moment to process and fill in the code parameter - please inform the user that the deployment is being prepared, and only call this tool after all parameters have finished being filled.",
+    "Deploy TypeScript or Python applications to Kernel. Provide the file name and its contents, and this tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel. Note: When deploying applications, it may take a moment to process and fill in the code parameter - please inform the user that the deployment is being prepared, and only call this tool after all parameters have finished being filled.",
     {
               filename: z
         .string()

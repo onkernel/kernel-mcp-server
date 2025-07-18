@@ -194,6 +194,7 @@ The server provides these tools for AI assistants:
 
 ### Application Management
 
+- `deploy_application` - Deploy TypeScript or Python applications to Kernel
 - `list_apps` - List applications in your Kernel workspace
 - `invoke_action` - Execute actions in Kernel applications
 - `get_deployment` - Get deployment status and logs
