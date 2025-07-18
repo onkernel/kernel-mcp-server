@@ -9,6 +9,7 @@ import { z } from "zod";
 import { promises as fs, createReadStream } from "fs";
 import path from "path";
 import os from "os";
+import crypto from "crypto";
 import JSZip from "jszip";
 import {
   resolveDependencies,
@@ -774,7 +775,7 @@ const handler = createMcpHandler((server) => {
       const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
 
       // Write buffer to a temporary location so we can stream it
-      const tmpZipPath = path.join(os.tmpdir(), `kernel_${Date.now()}.zip`);
+      const tmpZipPath = path.join(os.tmpdir(), `kernel_${crypto.randomUUID()}.zip`);
       await fs.writeFile(tmpZipPath, zipBuffer);
 
       try {

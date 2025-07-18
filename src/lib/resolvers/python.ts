@@ -307,6 +307,20 @@ export class PythonResolver implements LanguageResolver {
       .replace(/\.py$/, "")
       .replace(/[^a-zA-Z0-9_-]/g, "_");
 
+    // Helper function to ensure proper version constraint formatting
+    const formatDependency = (pkg: string, version: string): string => {
+      // If version already has a constraint operator, use it as-is
+      if (/^[><=~!]/.test(version) || version === "*") {
+        return `${pkg}${version}`;
+      }
+      // If it's a bare version number, add >= prefix
+      if (/^\d+\.\d+/.test(version)) {
+        return `${pkg}>=${version}`;
+      }
+      // Default fallback
+      return `${pkg}${version}`;
+    };
+
     const pyprojectToml = `[build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
@@ -319,12 +333,9 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
 ${Object.entries(dependencies)
-  .map(([pkg, version]) => `    "${pkg}${version}",`)
+  .map(([pkg, version]) => `    "${formatDependency(pkg, version)}",`)
   .join("\n")}
 ]
-
-[project.scripts]
-start = "${projectName}:main"
 `;
 
     // Generate a simple README
