@@ -5,8 +5,19 @@ import { ThemeProvider } from 'next-themes'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'MCP Server',
-  description: 'Model Context Protocol server with Clerk authentication',
+  title: 'Kernel MCP Server',
+  description: 'A Model Context Protocol (MCP) server that provides AI assistants with secure access to Kernel platform tools and browser automation capabilities.',
+  keywords: [
+    'MCP',
+    'Model Context Protocol',
+    'Kernel',
+    'browser automation',
+    'AI assistants',
+    'cloud deployment',
+    'web automation',
+    'Chromium',
+    'headless browser'
+  ],
 }
 
 export default function RootLayout({
