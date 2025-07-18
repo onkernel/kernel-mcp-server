@@ -18,8 +18,8 @@ export interface LanguageResolver {
 
   // Resolve all dependencies for a source file
   resolveDependencies(
-    code: string, 
-    providedDependencies?: Record<string, string>
+    code: string,
+    providedDependencies?: Record<string, string>,
   ): Promise<DependencyInfo>;
 
   // Generate project configuration files

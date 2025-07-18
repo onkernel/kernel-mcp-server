@@ -62,14 +62,12 @@ export function mergeDependencies(
   if (filename) {
     const language = detectLanguage(filename);
     const resolver = getResolver(language);
-    return resolver.mergeDependencies(
-      autoDependencies,
-      providedDependencies,
-    );
+    return resolver.mergeDependencies(autoDependencies, providedDependencies);
   }
 
   // Fallback to simple merge if no filename provided (backward compatibility)
-  const normalizedProvidedDeps: Record<string, string> = providedDependencies || {};
+  const normalizedProvidedDeps: Record<string, string> =
+    providedDependencies || {};
   const finalDependencies: Record<string, string> = {};
 
   Object.entries(autoDependencies).forEach(([pkg, version]) => {

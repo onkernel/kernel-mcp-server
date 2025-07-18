@@ -268,22 +268,26 @@ export class PythonResolver implements LanguageResolver {
    * Resolve all dependencies for a Python file
    */
   async resolveDependencies(
-    code: string, 
-    providedDependencies?: Record<string, string>
+    code: string,
+    providedDependencies?: Record<string, string>,
   ): Promise<DependencyInfo> {
     // Discover dependencies from import statements
     const discoveredPackages = this.extractImports(code);
-    const providedPackageNames = new Set(Object.keys(providedDependencies || {}));
+    const providedPackageNames = new Set(
+      Object.keys(providedDependencies || {}),
+    );
 
     // Lookup versions for each package (skip if already provided)
     const dependencies: Record<string, string> = {};
     for (const pkg of discoveredPackages) {
       if (providedPackageNames.has(pkg)) {
         // Skip PyPI lookup if user already provided this package version
-        console.log(`Skipping PyPI lookup for "${pkg}" - version provided by user`);
+        console.log(
+          `Skipping PyPI lookup for "${pkg}" - version provided by user`,
+        );
         continue;
       }
-      
+
       try {
         dependencies[pkg] = await this.lookupPackageVersion(pkg);
       } catch (error) {
@@ -393,8 +397,8 @@ python ${entrypointRelPath}
       if (/^\d+\.\d+/.test(version) && !/^[><=~!]/.test(version)) {
         console.warn(
           `Warning: Package "${pkg}": "${version}" appears to be a bare version number. ` +
-          `Python pip expects version constraints like ">=1.0.0", "==1.0.0", "~=1.0.0", etc. ` +
-          `If deployment fails, ensure your version matches your pyproject.toml exactly.`
+            `Python pip expects version constraints like ">=1.0.0", "==1.0.0", "~=1.0.0", etc. ` +
+            `If deployment fails, ensure your version matches your pyproject.toml exactly.`,
         );
       }
     });

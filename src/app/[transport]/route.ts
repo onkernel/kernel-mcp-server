@@ -709,12 +709,14 @@ const handler = createMcpHandler((server) => {
     "deploy_application",
     "Deploy TypeScript or Python applications to Kernel. Provide the file name and its contents, and this tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel. Note: When deploying applications, it may take a moment to process and fill in the code parameter - please inform the user that the deployment is being prepared, and only call this tool after all parameters have finished being filled.",
     {
-              filename: z
+      filename: z
         .string()
         .describe("File name of the entrypoint (e.g. 'index.ts', 'main.py')"),
-              code: z
+      code: z
         .string()
-        .describe("Full contents of the entrypoint source file (TypeScript or Python)"),
+        .describe(
+          "Full contents of the entrypoint source file (TypeScript or Python)",
+        ),
       dependencies: z
         .record(z.string(), z.string())
         .describe(
@@ -775,7 +777,10 @@ const handler = createMcpHandler((server) => {
       const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
 
       // Write buffer to a temporary location so we can stream it
-      const tmpZipPath = path.join(os.tmpdir(), `kernel_${crypto.randomUUID()}.zip`);
+      const tmpZipPath = path.join(
+        os.tmpdir(),
+        `kernel_${crypto.randomUUID()}.zip`,
+      );
       await fs.writeFile(tmpZipPath, zipBuffer);
 
       try {

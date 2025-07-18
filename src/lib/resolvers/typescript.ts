@@ -70,18 +70,22 @@ export class TypeScriptResolver implements LanguageResolver {
    */
   async resolveDependencies(
     code: string,
-    providedDependencies?: Record<string, string>
+    providedDependencies?: Record<string, string>,
   ): Promise<DependencyInfo> {
     // Discover dependencies from import statements
     const discoveredPackages = this.extractImports(code);
-    const providedPackageNames = new Set(Object.keys(providedDependencies || {}));
+    const providedPackageNames = new Set(
+      Object.keys(providedDependencies || {}),
+    );
 
     // Lookup versions for each package (skip if already provided)
     const dependencies: Record<string, string> = {};
     for (const pkg of discoveredPackages) {
       if (providedPackageNames.has(pkg)) {
         // Skip npm lookup if user already provided this package version
-        console.log(`Skipping npm lookup for "${pkg}" - version provided by user`);
+        console.log(
+          `Skipping npm lookup for "${pkg}" - version provided by user`,
+        );
         continue;
       }
 
