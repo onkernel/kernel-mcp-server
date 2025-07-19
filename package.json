@@ -35,6 +35,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/redis": "^4.0.11",
     "@vercel/mcp-adapter": "^0.11.2",
+    "builtin-modules": "^5.0.0",
     "install": "^0.13.0",
     "jose": "^6.0.11",
     "jsonwebtoken": "^9.0.2",
