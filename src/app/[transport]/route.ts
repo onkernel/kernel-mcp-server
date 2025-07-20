@@ -6,6 +6,17 @@ import { verifyToken } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { Kernel } from "@onkernel/sdk";
 import { z } from "zod";
+import { promises as fs, createReadStream } from "fs";
+import path from "path";
+import os from "os";
+import crypto from "crypto";
+import JSZip from "jszip";
+import {
+  resolveDependencies,
+  generateProjectFiles,
+  mergeDependencies,
+  detectEntrypoint,
+} from "@/lib/dependency-resolver";
 
 export async function OPTIONS(_req: NextRequest): Promise<Response> {
   return new Response(null, {
@@ -156,18 +167,18 @@ const handler = createMcpHandler((server) => {
   // List Apps Tool
   server.tool(
     "list_apps",
-    "List all applications deployed in the Kernel platform. Use this to discover available apps, check their versions, or filter by specific criteria. Helpful for understanding what applications are available before invoking actions.",
+    "List all apps deployed in the Kernel platform. Use this to discover available apps, check their versions, or filter by specific criteria. Helpful for understanding what apps are available before invoking actions.",
     {
       app_name: z
         .string()
         .describe(
-          'Filter results to show only applications with this exact name (e.g., "my-web-scraper")',
+          'Filter results to show only apps with this exact name (e.g., "my-web-scraper")',
         )
         .optional(),
       version: z
         .string()
         .describe(
-          'Filter results to show only applications with this exact version label (e.g., "v1.0.0", "latest")',
+          'Filter results to show only apps with this exact version label (e.g., "v1.0.0", "latest")',
         )
         .optional(),
     },
@@ -193,7 +204,7 @@ const handler = createMcpHandler((server) => {
               type: "text",
               text: result
                 ? JSON.stringify({ apps: result }, null, 2)
-                : "No applications found",
+                : "No apps found",
             },
           ],
         };
@@ -213,7 +224,7 @@ const handler = createMcpHandler((server) => {
   // Invoke Action Tool
   server.tool(
     "invoke_action",
-    "Execute a specific action within a Kernel application. This is the primary way to interact with deployed applications - use this to trigger workflows, run computations, or perform operations. The action will run asynchronously and you can track its progress with the returned invocation ID.",
+    "Execute a specific action within a Kernel app. This is the primary way to interact with deployed apps - use this to trigger workflows, run computations, or perform operations. The action will run asynchronously and you can track its progress with the returned invocation ID.",
     {
       app_name: z
         .string()
@@ -512,7 +523,7 @@ const handler = createMcpHandler((server) => {
   // Get Deployment Tool
   server.tool(
     "get_deployment",
-    "Retrieve comprehensive information about a specific deployment including its current status, build logs, configuration, and health metrics. Use this to monitor deployment progress, troubleshoot deployment issues, or verify that an application was deployed successfully.",
+    "Retrieve comprehensive information about a specific deployment including its current status, build logs, configuration, and health metrics. Use this to monitor deployment progress, troubleshoot deployment issues, or verify that an app was deployed successfully.",
     {
       id: z
         .string()
@@ -647,13 +658,13 @@ const handler = createMcpHandler((server) => {
   // List Deployments Tool
   server.tool(
     "list_deployments",
-    "Retrieve a comprehensive list of all deployments in the Kernel platform, with optional filtering by application name. This provides an overview of deployment history, current status, and allows you to track the deployment lifecycle of your applications. Use this to monitor deployment activity or find specific deployments.",
+    "Retrieve a comprehensive list of all deployments in the Kernel platform, with optional filtering by app name. This provides an overview of deployment history, current status, and allows you to track the deployment lifecycle of your apps. Use this to monitor deployment activity or find specific deployments.",
     {
       app_name: z
         .string()
         .describe(
-          'Filter results to show only deployments for this specific application name (e.g., "my-web-scraper")',
-        )
+          'Filter results to show only deployments for this specific app name (e.g., "my-web-scraper")',
+        ),
     },
     async ({ app_name }, extra) => {
       if (!extra.authInfo) {
@@ -686,6 +697,283 @@ const handler = createMcpHandler((server) => {
             {
               type: "text",
               text: `Error fetching deployments: ${error}`,
+            },
+          ],
+        };
+      }
+    },
+  );
+
+  // Deploy App Tool
+  server.tool(
+    "deploy_app",
+    "Deploy TypeScript or Python apps to Kernel. Provide a dictionary of files where keys are relative file paths and values are file contents. This tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel.",
+    {
+      files: z
+        .record(z.string(), z.string())
+        .describe(
+          "Dictionary of files where keys are relative file paths (e.g. 'src/index.ts', 'src/utils.ts') and values are the file contents. Relative imports will work correctly as files maintain their paths.",
+        ),
+      entrypoint: z
+        .string()
+        .describe("Optional: Explicit entrypoint file path (e.g. 'src/index.ts'). If not provided, will auto-detect from common patterns.")
+        .optional(),
+      dependencies: z
+        .record(z.string(), z.string())
+        .describe(
+          "Map of package names to exact version strings for production dependencies only. These override auto-discovered runtime dependencies. Do not include dev dependencies.",
+        ),
+      version: z
+        .string()
+        .describe("Optional: Version label to deploy (default 'latest')")
+        .optional(),
+      force: z
+        .boolean()
+        .describe(
+          "If true, allow overwriting an existing version with the same label (default false)",
+        )
+        .optional(),
+    },
+    async (params, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const { files, entrypoint, version = "latest", force = false, dependencies: providedDependencies } = params;
+
+      // Validate input
+      if (!files || Object.keys(files).length === 0) {
+        throw new Error("No files provided");
+      }
+
+      const client = new Kernel({
+        apiKey: extra.authInfo.token,
+        baseURL: process.env.API_BASE_URL,
+      });
+
+      try {
+        // Detect entrypoint
+        const entrypointRelPath = detectEntrypoint(files, entrypoint);
+        
+        // Resolve dependencies from all files
+        const { discoveredPackages, dependencies: discoveredDependencies } =
+          await resolveDependencies(files, providedDependencies);
+
+        // Merge auto-discovered and explicitly provided dependencies
+        const resolvedDependencies = mergeDependencies(
+          discoveredDependencies,
+          providedDependencies,
+          entrypointRelPath,
+        );
+
+        // Generate project files based on detected language
+        const projectFiles = generateProjectFiles(entrypointRelPath, resolvedDependencies);
+
+        const zip = new JSZip();
+        // Add all generated project files
+        Object.entries(projectFiles).forEach(([filePath, content]) => {
+          zip.file(filePath, content);
+        });
+        
+        // Add all user files with their original paths
+        Object.entries(files).forEach(([filePath, content]) => {
+          zip.file(filePath, content);
+        });
+
+        const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+
+        // Write buffer to a temporary location so we can stream it
+        const tmpZipPath = path.join(
+          os.tmpdir(),
+          `kernel_${crypto.randomUUID()}.zip`,
+        );
+        await fs.writeFile(tmpZipPath, zipBuffer);
+
+        try {
+          const response = await client.deployments.create(
+            {
+              file: createReadStream(tmpZipPath),
+              entrypoint_rel_path: entrypointRelPath,
+              version,
+              force,
+            },
+            { maxRetries: 0 },
+          );
+
+          // Follow deployment events via stream
+          let logMessages: string[] = [];
+          let finalDeployment = response;
+          let appVersionInfo: any = null;
+
+          try {
+            const stream = await client.deployments.follow(response.id);
+
+            for await (const event of stream) {
+              switch (event.event) {
+                case "log":
+                  const logMessage = event.message?.replace(/\n$/, "") || "";
+                  logMessages.push(`LOG: ${logMessage}`);
+                  break;
+
+                case "deployment_state":
+                  finalDeployment = event.deployment || finalDeployment;
+
+                  if (
+                    finalDeployment.status === "failed" ||
+                    finalDeployment.status === "stopped"
+                  ) {
+                    return {
+                      content: [
+                        {
+                          type: "text",
+                          text: JSON.stringify(
+                            {
+                              status: "failed",
+                              deployment: finalDeployment,
+                              logs: logMessages,
+                              discovered_packages: discoveredPackages,
+                              resolved_dependencies: resolvedDependencies,
+                              files_deployed: Object.keys(files),
+                              entrypoint: entrypointRelPath,
+                              error: `Deployment ${finalDeployment.status}: ${finalDeployment.status_reason || "Unknown error"}`,
+                            },
+                            null,
+                            2,
+                          ),
+                        },
+                      ],
+                    };
+                  }
+
+                  if (finalDeployment.status === "running") {
+                    // Deployment completed successfully
+                    return {
+                      content: [
+                        {
+                          type: "text",
+                          text: JSON.stringify(
+                            {
+                              status: "success",
+                              deployment: finalDeployment,
+                              app_info: appVersionInfo,
+                              logs: logMessages,
+                              discovered_packages: discoveredPackages,
+                              resolved_dependencies: resolvedDependencies,
+                              files_deployed: Object.keys(files),
+                              entrypoint: entrypointRelPath,
+                              message: "✔ Deployment completed successfully",
+                            },
+                            null,
+                            2,
+                          ),
+                        },
+                      ],
+                    };
+                  }
+                  break;
+
+                case "app_version_summary":
+                  appVersionInfo = {
+                    app_name: event.app_name,
+                    version: event.version,
+                    actions: event.actions || [],
+                  };
+
+                  if (event.actions && event.actions.length > 0) {
+                    const firstAction = event.actions[0].name;
+                    logMessages.push(
+                      `App "${event.app_name}" deployed (version: ${event.version})`,
+                    );
+                    logMessages.push(
+                      `Invoke with: kernel invoke ${event.app_name} ${firstAction} --payload '{...}'`,
+                    );
+                  }
+                  break;
+
+                case "error":
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify(
+                          {
+                            status: "error",
+                            deployment: finalDeployment,
+                            logs: logMessages,
+                            discovered_packages: discoveredPackages,
+                            resolved_dependencies: resolvedDependencies,
+                            files_deployed: Object.keys(files),
+                            entrypoint: entrypointRelPath,
+                            error: `${event.error?.code || "Unknown"}: ${event.error?.message || "Unknown error"}`,
+                          },
+                          null,
+                          2,
+                        ),
+                      },
+                    ],
+                  };
+              }
+            }
+
+            // If we exit the loop without a final state, return what we have
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    {
+                      status: "unknown",
+                      deployment: finalDeployment,
+                      app_info: appVersionInfo,
+                      logs: logMessages,
+                      discovered_packages: discoveredPackages,
+                      resolved_dependencies: resolvedDependencies,
+                      files_deployed: Object.keys(files),
+                      entrypoint: entrypointRelPath,
+                      message:
+                        "Deployment stream ended without clear final state",
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+          } catch (streamError) {
+            // If streaming fails, return the initial deployment response with error info
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    {
+                      status: "stream_error",
+                      deployment: response,
+                      logs: logMessages,
+                      discovered_packages: discoveredPackages,
+                      resolved_dependencies: resolvedDependencies,
+                      files_deployed: Object.keys(files),
+                      entrypoint: entrypointRelPath,
+                      error: `Stream error: ${streamError instanceof Error ? streamError.message : "Unknown streaming error"}`,
+                      message: "Deployment initiated but streaming failed",
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+          }
+        } finally {
+          // Clean up temporary zip file
+          await fs.unlink(tmpZipPath).catch(() => {});
+        }
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error deploying app: ${err}`,
             },
           ],
         };
