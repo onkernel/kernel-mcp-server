@@ -15,7 +15,6 @@ import {
   resolveDependencies,
   generateProjectFiles,
   mergeDependencies,
-  detectLanguage,
 } from "@/lib/dependency-resolver";
 
 export async function OPTIONS(_req: NextRequest): Promise<Response> {
