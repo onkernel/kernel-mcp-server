@@ -15,22 +15,16 @@ export async function OPTIONS(): Promise<NextResponse> {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
 
-  // Required OAuth parameters
+  // Extract required parameters for basic validation
   const clientId = searchParams.get("client_id");
-  const redirectUri = searchParams.get("redirect_uri");
-  const responseType = searchParams.get("response_type");
-  const scope = searchParams.get("scope");
-  const state = searchParams.get("state");
-  const codeChallenge = searchParams.get("code_challenge");
-  const codeChallengeMethod = searchParams.get("code_challenge_method");
   const selectedOrgId = searchParams.get("org_id");
 
-  // Validate required parameters
-  if (!clientId || !redirectUri || !responseType) {
+  // Validate minimum required parameters
+  if (!clientId) {
     return NextResponse.json(
       {
         error: "invalid_request",
-        error_description: "Missing required parameters",
+        error_description: "Missing required parameter: client_id",
       },
       {
         status: 400,
@@ -53,41 +47,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     return NextResponse.redirect(selectOrgUrl.toString());
-  }
-
-  if (responseType !== "code") {
-    return NextResponse.json(
-      {
-        error: "unsupported_response_type",
-        error_description: "Only authorization_code flow is supported",
-      },
-      {
-        status: 400,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        },
-      },
-    );
-  }
-
-  // PKCE is required for public clients
-  if (!codeChallenge || codeChallengeMethod !== "S256") {
-    return NextResponse.json(
-      {
-        error: "invalid_request",
-        error_description: "PKCE with S256 is required",
-      },
-      {
-        status: 400,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        },
-      },
-    );
   }
 
   // Get Clerk configuration for upstream authentication
@@ -136,15 +95,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Build Clerk authorization URL with the original client parameters
+  // Build Clerk authorization URL with all original parameters (except org_id)
   const clerkAuthUrl = new URL(`https://${clerkDomain}/oauth/authorize`);
-  clerkAuthUrl.searchParams.set("client_id", clientId);
-  clerkAuthUrl.searchParams.set("redirect_uri", redirectUri);
-  clerkAuthUrl.searchParams.set("response_type", responseType);
-  clerkAuthUrl.searchParams.set("scope", scope || "openid");
-  if (state) clerkAuthUrl.searchParams.set("state", state);
-  clerkAuthUrl.searchParams.set("code_challenge", codeChallenge);
-  clerkAuthUrl.searchParams.set("code_challenge_method", codeChallengeMethod);
+
+  // Pass through all original parameters except our custom org_id
+  searchParams.forEach((value, key) => {
+    if (key !== "org_id") {
+      clerkAuthUrl.searchParams.set(key, value);
+    }
+  });
 
   // Direct redirect to Clerk
   return NextResponse.redirect(clerkAuthUrl.toString());

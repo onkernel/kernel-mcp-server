@@ -29,6 +29,7 @@
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\""
   },
   "dependencies": {
+    "@clerk/mcp-tools": "^0.1.1",
     "@clerk/nextjs": "^6.24.0",
     "@clerk/themes": "^2.2.56",
     "@onkernel/sdk": "^0.7.1",

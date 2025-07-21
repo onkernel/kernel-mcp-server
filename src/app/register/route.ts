@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 
+// Custom registration endpoint needed because Clerk doesn't support custom scopes
+// We only want "openid" scope instead of Clerk's default email/profile scopes
 export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
     status: 204,

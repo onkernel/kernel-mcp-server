@@ -1,29 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  authServerMetadataHandlerClerk,
+  metadataCorsOptionsRequestHandler,
+} from "@clerk/mcp-tools/next";
+import { NextRequest } from "next/server";
 
-export async function OPTIONS(): Promise<NextResponse> {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    },
-  });
-}
+const handler = async (request: NextRequest) => {
+  const clerkResponse = await authServerMetadataHandlerClerk()();
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+  // Parse the Clerk response to get the JSON data
+  const clerkMetadata = await clerkResponse.json();
+
+  // Get the base URL from the current request
   const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
 
-  return NextResponse.json({
-    issuer: baseUrl,
+  // Override the authorization and token endpoints to use our server
+  // This allows us to implement the org-scoped OAuth flow we need
+  const modifiedMetadata = {
+    ...clerkMetadata,
     authorization_endpoint: `${baseUrl}/authorize`,
     token_endpoint: `${baseUrl}/token`,
     registration_endpoint: `${baseUrl}/register`,
-    response_types_supported: ["code"],
-    response_modes_supported: ["query"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
-    token_endpoint_auth_methods_supported: ["client_secret_basic", "none"],
-    revocation_endpoint: `${baseUrl}/token`,
-    code_challenge_methods_supported: ["S256"],
-  });
-}
+    scopes_supported: ["openid"],
+  };
+
+  return Response.json(modifiedMetadata);
+};
+
+export { handler as GET, metadataCorsOptionsRequestHandler as OPTIONS };
