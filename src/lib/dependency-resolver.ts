@@ -37,14 +37,12 @@ export async function resolveDependencies(
     try {
       const language = detectLanguage(filename);
       const resolver = getResolver(language);
-      
-      const { discoveredPackages, dependencies } = await resolver.resolveDependencies(
-        code,
-        providedDependencies
-      );
-      
+
+      const { discoveredPackages, dependencies } =
+        await resolver.resolveDependencies(code, providedDependencies);
+
       // Aggregate results
-      discoveredPackages.forEach(pkg => allDiscoveredPackages.add(pkg));
+      discoveredPackages.forEach((pkg) => allDiscoveredPackages.add(pkg));
       Object.assign(allDependencies, dependencies);
     } catch (error) {
       console.warn(`Skipping dependency resolution for ${filename}:`, error);
@@ -67,22 +65,32 @@ export function detectEntrypoint(
 ): string {
   if (explicitEntrypoint) {
     if (!(explicitEntrypoint in files)) {
-      throw new Error(`Specified entrypoint "${explicitEntrypoint}" not found in files`);
+      throw new Error(
+        `Specified entrypoint "${explicitEntrypoint}" not found in files`,
+      );
     }
     return explicitEntrypoint;
   }
 
   const fileKeys = Object.keys(files);
   if (fileKeys.length === 0) {
-    throw new Error('No files provided');
+    throw new Error("No files provided");
   }
 
   // Priority order for entrypoint detection
   const entrypointCandidates = [
-    'index.ts', 'src/index.ts', 'app/index.ts',
-    'main.ts', 'src/main.ts', 'app/main.ts',
-    'index.py', 'src/index.py', 'app/index.py', 
-    'main.py', 'src/main.py', 'app/main.py',
+    "index.ts",
+    "src/index.ts",
+    "app/index.ts",
+    "main.ts",
+    "src/main.ts",
+    "app/main.ts",
+    "index.py",
+    "src/index.py",
+    "app/index.py",
+    "main.py",
+    "src/main.py",
+    "app/main.py",
   ];
 
   // Check exact matches first
@@ -94,7 +102,7 @@ export function detectEntrypoint(
 
   // Fallback: find any file matching entrypoint pattern
   for (const filePath of fileKeys) {
-    const basename = filePath.split('/').pop() || '';
+    const basename = filePath.split("/").pop() || "";
     if (/^(index|main)\.(ts|py)$/.test(basename)) {
       return filePath;
     }
@@ -113,7 +121,11 @@ export function generateProjectFiles(
 ): ProjectFiles {
   const language = detectLanguage(entrypointPath);
   const resolver = getResolver(language);
-  return resolver.generateProjectFiles(entrypointPath, entrypointPath, dependencies);
+  return resolver.generateProjectFiles(
+    entrypointPath,
+    entrypointPath,
+    dependencies,
+  );
 }
 
 /**

@@ -195,7 +195,7 @@ The server provides these tools for AI assistants:
 ### Application Management
 
 - `deploy_app` - Deploy TypeScript or Python apps to Kernel
-- `list_apps` - List apps in your Kernel workspace
+- `list_apps` - List apps in your Kernel organization
 - `invoke_action` - Execute actions in Kernel apps
 - `get_deployment` - Get deployment status and logs
 - `list_deployments` - List all deployments
@@ -244,7 +244,7 @@ Assistant: Let me check your recent deployments and their status.
 Yes — the code lives at [github.com/onkernel/kernel-mcp-server](https://github.com/onkernel/kernel-mcp-server). You're welcome to browse the code and contribute. We provide a hosted instance at `https://mcp.onkernel.com/mcp` for convenience.
 
 **Does Kernel store my data?**
-Only encrypted refresh tokens and minimal metadata required for auth; browser state lives in your Kernel workspace and never leaves your tenancy.
+Only encrypted refresh tokens and minimal metadata required for auth; browser state lives in your Kernel organization and never leaves your tenancy.
 
 **What scopes are requested?**
 `browser.session`, `dom.read`, and `js.eval` by default. You can narrow scopes in your client during OAuth.

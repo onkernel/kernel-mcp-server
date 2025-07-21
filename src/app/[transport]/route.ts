@@ -716,7 +716,9 @@ const handler = createMcpHandler((server) => {
         ),
       entrypoint: z
         .string()
-        .describe("Optional: Explicit entrypoint file path (e.g. 'src/index.ts'). If not provided, will auto-detect from common patterns.")
+        .describe(
+          "Optional: Explicit entrypoint file path (e.g. 'src/index.ts'). If not provided, will auto-detect from common patterns.",
+        )
         .optional(),
       dependencies: z
         .record(z.string(), z.string())
@@ -739,7 +741,13 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const { files, entrypoint, version = "latest", force = false, dependencies: providedDependencies } = params;
+      const {
+        files,
+        entrypoint,
+        version = "latest",
+        force = false,
+        dependencies: providedDependencies,
+      } = params;
 
       // Validate input
       if (!files || Object.keys(files).length === 0) {
@@ -754,7 +762,7 @@ const handler = createMcpHandler((server) => {
       try {
         // Detect entrypoint
         const entrypointRelPath = detectEntrypoint(files, entrypoint);
-        
+
         // Resolve dependencies from all files
         const { discoveredPackages, dependencies: discoveredDependencies } =
           await resolveDependencies(files, providedDependencies);
@@ -767,14 +775,17 @@ const handler = createMcpHandler((server) => {
         );
 
         // Generate project files based on detected language
-        const projectFiles = generateProjectFiles(entrypointRelPath, resolvedDependencies);
+        const projectFiles = generateProjectFiles(
+          entrypointRelPath,
+          resolvedDependencies,
+        );
 
         const zip = new JSZip();
         // Add all generated project files
         Object.entries(projectFiles).forEach(([filePath, content]) => {
           zip.file(filePath, content);
         });
-        
+
         // Add all user files with their original paths
         Object.entries(files).forEach(([filePath, content]) => {
           zip.file(filePath, content);
