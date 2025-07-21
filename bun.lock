@@ -4,6 +4,7 @@
     "": {
       "name": "kernel-mcp-server",
       "dependencies": {
+        "@clerk/mcp-tools": "^0.1.1",
         "@clerk/nextjs": "^6.24.0",
         "@clerk/themes": "^2.2.56",
         "@onkernel/sdk": "^0.7.1",
@@ -42,6 +43,8 @@
     "@clerk/backend": ["@clerk/backend@2.4.2", "", { "dependencies": { "@clerk/shared": "^3.12.0", "@clerk/types": "^4.65.0", "cookie": "1.0.2", "snakecase-keys": "8.0.1", "standardwebhooks": "^1.0.0", "tslib": "2.8.1" } }, "sha512-+xDT6lfyXbrHvn+T4pqMvDq07eoGzqDlgX7tZePNn0dVyQLBFdN0XuIzyeVIDN0SIwPQ1W68uCYWvhh7O/awOw=="],
 
     "@clerk/clerk-react": ["@clerk/clerk-react@5.34.0", "", { "dependencies": { "@clerk/shared": "^3.12.0", "@clerk/types": "^4.65.0", "tslib": "2.8.1" }, "peerDependencies": { "react": "^18.0.0 || ^19.0.0 || ^19.0.0-0", "react-dom": "^18.0.0 || ^19.0.0 || ^19.0.0-0" } }, "sha512-wUddgE3ziz7qsDKLVPIGk5SsDuO4kcyvGhxPjyknqidxa5Sx8h8zMw1PnthTaQikP/EXjA5non5NNzdNSmmHAA=="],
+
+    "@clerk/mcp-tools": ["@clerk/mcp-tools@0.1.1", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.12.3" }, "peerDependencies": { "better-sqlite3": "^8.7.0", "pg": "^8.11.0", "redis": "^4.0.0" }, "optionalPeers": ["better-sqlite3", "pg", "redis"] }, "sha512-SHoLmSAXtG4lXoVI4rbFScPP5GHK8YAvFFFh/NtKO8enaSnytv8gm7JKxymaxP7+OvRasQpmIJ8KmMR84sxhig=="],
 
     "@clerk/nextjs": ["@clerk/nextjs@6.25.0", "", { "dependencies": { "@clerk/backend": "^2.4.2", "@clerk/clerk-react": "^5.34.0", "@clerk/shared": "^3.12.0", "@clerk/types": "^4.65.0", "server-only": "0.0.1", "tslib": "2.8.1" }, "peerDependencies": { "next": "^13.5.7 || ^14.2.25 || ^15.2.3", "react": "^18.0.0 || ^19.0.0 || ^19.0.0-0", "react-dom": "^18.0.0 || ^19.0.0 || ^19.0.0-0" } }, "sha512-KUoOw2/8QJW7q1Et7IhsctRmVNWUoorL8R2ocFsFuZLvdnKPzcTZ+AWuTnbvc7KvNxlybvcfKbcKmCi5Cfd2lg=="],
 
