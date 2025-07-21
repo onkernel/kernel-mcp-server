@@ -6,6 +6,8 @@
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides AI assistants with secure access to [Kernel platform](https://onkernel.com) tools and browser automation capabilities.
 
+![Architecture Overview](public/architecture_overview.png)
+
 🌐 **Use instantly** at `https://mcp.onkernel.com/mcp` — no installation required!
 
 ## What is this?
@@ -21,10 +23,6 @@ The Kernel MCP Server bridges AI assistants (like Claude, Cursor, or other MCP-c
 **Open-source & fully-managed** — the complete codebase is available here, and we run the production instance so you don't need to deploy anything.
 
 The server uses OAuth 2.0 authentication via [Clerk](https://clerk.com) to ensure secure access to your Kernel resources.
-
-## 📋 Prerequisites
-
-- **Kernel Account**: Sign up at [onkernel.com](https://onkernel.com)
 
 ## 🚀 Quick Start
 
