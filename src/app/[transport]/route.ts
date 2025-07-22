@@ -479,13 +479,13 @@ const handler = createMcpHandler((server) => {
     "delete_browser",
     "Permanently terminate and clean up a browser session. This will stop the browser instance, free up resources, and remove any associated data. Use this when you no longer need a browser session or want to clean up after completing automation tasks.",
     {
-      id: z
+      persistence_id: z
         .string()
         .describe(
-          "Unique identifier of the browser session to terminate. You can get this from list_browsers or create_browser responses.",
+          "Unique string identifier for browser session persistence. This is the same ID used when creating browsers to maintain state across sessions. You can find this value in the persistence.id field from list_browsers responses.",
         ),
     },
-    async ({ id }, extra) => {
+    async ({ persistence_id }, extra) => {
       if (!extra.authInfo) {
         throw new Error("Authentication required");
       }
@@ -497,7 +497,7 @@ const handler = createMcpHandler((server) => {
 
       try {
         await client.browsers.delete({
-          persistent_id: id,
+          persistent_id: persistence_id,
         });
 
         return {
