@@ -17,6 +17,7 @@ import {
   mergeDependencies,
   detectEntrypoint,
 } from "@/lib/dependency-resolver";
+import { AppAction } from "@onkernel/sdk/resources";
 
 export async function OPTIONS(_req: NextRequest): Promise<Response> {
   return new Response(null, {
@@ -409,10 +410,10 @@ const handler = createMcpHandler((server) => {
           "Link this browser session to a specific action invocation for tracking and resource management.",
         )
         .optional(),
-      persistence: z
-        .any()
+      persistence_id: z
+        .string()
         .describe(
-          "Configuration for browser session persistence across restarts. Useful for maintaining login state and session data.",
+          "Unique string identifier for browser session persistence. If a browser with this ID exists, Kernel reuses it with all saved state (cookies, authentication, cache). If not found, creates a new browser with this ID for future reuse. Can be any string to match users, environments, websites, etc.",
         )
         .optional(),
       replay: z
@@ -429,7 +430,7 @@ const handler = createMcpHandler((server) => {
         .optional(),
     },
     async (
-      { headless, invocation_id, persistence, replay, stealth },
+      { headless, invocation_id, persistence_id, replay, stealth },
       extra,
     ) => {
       if (!extra.authInfo) {
@@ -445,7 +446,7 @@ const handler = createMcpHandler((server) => {
         const result = await client.browsers.create({
           ...(headless && { headless: headless }),
           ...(invocation_id && { invocation_id: invocation_id }),
-          ...(persistence && { persistence: persistence }),
+          ...(persistence_id && { persistence: { id: persistence_id } }),
           ...(replay && { replay: replay }),
           ...(stealth && { stealth: stealth }),
         });
@@ -814,7 +815,11 @@ const handler = createMcpHandler((server) => {
           // Follow deployment events via stream
           let logMessages: string[] = [];
           let finalDeployment = response;
-          let appVersionInfo: any = null;
+          let appVersionInfo: {
+            app_name: string;
+            version: string;
+            actions: AppAction[];
+          } | null = null;
 
           try {
             const stream = await client.deployments.follow(response.id);
