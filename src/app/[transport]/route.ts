@@ -66,7 +66,7 @@ const handler = createMcpHandler((server) => {
           'Search query to find relevant documentation. Use natural language like "how to deploy an app" or "browser automation examples"',
         ),
     },
-    async ({ query }) => {
+    async ({ query }, extra) => {
       if (!process.env.MINTLIFY_API_TOKEN) {
         console.error("MINTLIFY_API_TOKEN environment variable is not set");
         return {
@@ -93,42 +93,37 @@ const handler = createMcpHandler((server) => {
       }
 
       const mintlifyBaseUrl = "https://api-dsc.mintlify.com/v1";
+      const domain = "docs.onkernel.com";
+      const fingerprint = extra.authInfo?.extra?.userId || "anonymous";
       const headers = {
         Authorization: `Bearer ${process.env.MINTLIFY_API_TOKEN}`,
         "Content-Type": "application/json",
       };
 
       try {
-        // Create a topic for the Mintlify chat
-        const topicResponse = await fetch(`${mintlifyBaseUrl}/chat/topic`, {
-          method: "POST",
-          headers,
-        });
-
-        if (!topicResponse.ok) {
-          console.error(
-            `Failed to create topic: ${topicResponse.status} ${topicResponse.statusText}`,
-          );
-          throw new Error(
-            `Failed to create topic: ${topicResponse.status} ${topicResponse.statusText}`,
-          );
-        }
-
-        const topicData = await topicResponse.json();
-        const topicId = topicData.topicId;
-
-        if (!topicId) {
-          console.error("Failed to get topic ID from response");
-          throw new Error("Failed to get topic ID from response");
-        }
-
-        // Send the search query to Mintlify
-        const messageResponse = await fetch(`${mintlifyBaseUrl}/chat/message`, {
+        // Generate a unique message ID
+        const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Send the search query to Mintlify's new assistant API
+        const messageResponse = await fetch(`${mintlifyBaseUrl}/assistant/${domain}/message`, {
           method: "POST",
           headers,
           body: JSON.stringify({
-            topicId: topicId,
-            message: query,
+            messages: [
+              {
+                id: messageId,
+                role: "user",
+                content: query,
+                parts: [
+                  {
+                    type: "text",
+                    text: query,
+                  },
+                ],
+              },
+            ],
+            fp: fingerprint,
+            retrievalPageSize: 5,
           }),
         });
 
@@ -143,11 +138,29 @@ const handler = createMcpHandler((server) => {
 
         const responseText = await messageResponse.text();
 
+        // Parse the streaming response format from Mintlify
+        // Lines starting with '0:' contain the actual text content
+        const textLines = responseText
+          .split('\n')
+          .filter(line => line.startsWith('0:"'))
+          .map(line => {
+            // Extract text between quotes, handling escaped quotes
+            const match = line.match(/^0:"(.*)"/);
+            if (match) {
+              // Unescape the JSON string
+              return JSON.parse('"' + match[1] + '"');
+            }
+            return '';
+          })
+          .filter(text => text.length > 0);
+
+        const cleanText = textLines.join('');
+
         return {
           content: [
             {
               type: "text",
-              text: responseText || "No results found for your query.",
+              text: cleanText || "No results found for your query.",
             },
           ],
         };
