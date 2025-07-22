@@ -103,29 +103,32 @@ const handler = createMcpHandler((server) => {
       try {
         // Generate a unique message ID
         const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
+
         // Send the search query to Mintlify's new assistant API
-        const messageResponse = await fetch(`${mintlifyBaseUrl}/assistant/${domain}/message`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            messages: [
-              {
-                id: messageId,
-                role: "user",
-                content: query,
-                parts: [
-                  {
-                    type: "text",
-                    text: query,
-                  },
-                ],
-              },
-            ],
-            fp: fingerprint,
-            retrievalPageSize: 5,
-          }),
-        });
+        const messageResponse = await fetch(
+          `${mintlifyBaseUrl}/assistant/${domain}/message`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              messages: [
+                {
+                  id: messageId,
+                  role: "user",
+                  content: query,
+                  parts: [
+                    {
+                      type: "text",
+                      text: query,
+                    },
+                  ],
+                },
+              ],
+              fp: fingerprint,
+              retrievalPageSize: 5,
+            }),
+          },
+        );
 
         if (!messageResponse.ok) {
           console.error(
@@ -141,20 +144,20 @@ const handler = createMcpHandler((server) => {
         // Parse the streaming response format from Mintlify
         // Lines starting with '0:' contain the actual text content
         const textLines = responseText
-          .split('\n')
-          .filter(line => line.startsWith('0:"'))
-          .map(line => {
+          .split("\n")
+          .filter((line) => line.startsWith('0:"'))
+          .map((line) => {
             // Extract text between quotes, handling escaped quotes
             const match = line.match(/^0:"(.*)"/);
             if (match) {
               // Unescape the JSON string
               return JSON.parse('"' + match[1] + '"');
             }
-            return '';
+            return "";
           })
-          .filter(text => text.length > 0);
+          .filter((text) => text.length > 0);
 
-        const cleanText = textLines.join('');
+        const cleanText = textLines.join("");
 
         return {
           content: [

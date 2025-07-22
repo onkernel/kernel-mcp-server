@@ -24,9 +24,60 @@ The Kernel MCP Server bridges AI assistants (like Claude, Cursor, or other MCP-c
 
 The server uses OAuth 2.0 authentication via [Clerk](https://clerk.com) to ensure secure access to your Kernel resources.
 
-## 🚀 Quick Start
+## 🎯 First Time? Start Here!
 
-The easiest way to get started is using our hosted service at `https://mcp.onkernel.com/mcp`. No installation or deployment required!
+**Ready to try Kernel but don't see any apps yet?** Perfect! Here's how to get started:
+
+### Step 1: Install Kernel MCP Server
+
+Install the Kernel MCP server to your favorite MCP client using the [setup instructions](#-mcp-server-setup) below.
+
+### Step 2: Ask Your AI Assistant for Help
+
+Once connected, simply ask in your MCP client chat:
+
+```
+"How do I get a Kernel sample app set up locally?"
+```
+
+Your AI assistant will use the `search_docs` tool to get you the latest quickstart instructions and guide you through setting up your first Kernel app!
+
+### Step 3: Deploy & Test with MCP Tools
+
+After you have a sample app locally, ask your assistant:
+
+```
+"Deploy my sample app to Kernel"
+```
+
+> **Note:** Be patient and wait until all tool parameters are fully generated before running the tool call.
+
+Then test it:
+
+```
+"Run my app and get the title from onkernel.com"
+```
+
+### Why This Approach?
+
+- ✅ **Always up-to-date** - Your AI assistant fetches the latest docs
+- ✅ **Interactive guidance** - Get help customized to your setup
+- ✅ **Learn MCP tools** - Experience the power of `search_docs`, `deploy_app`, and `invoke_action`
+- ✅ **End-to-end workflow** - From local development to cloud deployment to execution
+
+### What You'll Experience
+
+Your AI assistant will help you:
+
+- Download and understand sample apps (`search_docs`)
+- Deploy your local code to the cloud (`deploy_app`)
+- Run actions and see results (`invoke_action`)
+- Create browser sessions in the cloud (`create_browser`)
+- Monitor deployments (`list_deployments`, `get_deployment`)
+
+## 🚀 MCP Server Setup
+
+First, add the Kernel MCP server to your favorite MCP-compatible client using `https://mcp.onkernel.com/mcp`. Here are setup instructions for popular clients:
 
 ### Claude
 
@@ -104,19 +155,6 @@ claude mcp add --transport http kernel https://mcp.onkernel.com/mcp
    - **URL**: `https://mcp.onkernel.com/mcp`
    - **Timeout**: `300`
 5. Click `Add` button.
-
-#### Goose CLI
-
-1. Run the following command:
-   ```bash
-   goose configure
-   ```
-2. Select `Add Extension` from the menu.
-3. Choose `Remote Extension (Streaming HTTP)`.
-4. Follow the prompts:
-   - **Extension name**: `Kernel`
-   - **URL**: `https://mcp.onkernel.com/mcp`
-   - **Timeout**: `300`
 
 ### Visual Studio Code
 
@@ -212,28 +250,28 @@ The server provides these tools for AI assistants:
 
 ## 📚 Usage Examples
 
-### Basic App Management
+### Deploy Local Apps to the Cloud
 
 ```
-Human: List my Kernel apps
-Assistant: I'll check your Kernel apps for you.
-[Uses list_apps tool]
+Human: I have a Kernel Playwright automation script open in my editor. Can you deploy it to Kernel?
+Assistant: I'll read your local files and deploy them to Kernel for you.
+[Uses deploy_app tool to upload your code and create a cloud deployment]
 ```
 
-### Browser Automation
+### Invoke Apps from Anywhere
 
 ```
-Human: Create a browser session and navigate to example.com
-Assistant: I'll create a browser session for you and navigate to example.com.
-[Uses create_browser and browser automation tools]
+Human: Run my web-scraper app to get data from reddit.com
+Assistant: I'll execute your web-scraper action with reddit.com as the target.
+[Uses invoke_action tool to run your deployed app in the cloud]
 ```
 
-### Deployment Monitoring
+### Create Persistent Browser Sessions
 
 ```
-Human: Check the status of my latest deployment
-Assistant: Let me check your recent deployments and their status.
-[Uses list_deployments and get_deployment tools]
+Human: Create a stealth browser session that I can reuse for testing login flows
+Assistant: I'll create a persistent, stealth-enabled browser that maintains state between uses.
+[Uses create_browser tool with persistence and stealth options]
 ```
 
 ## ❓ Frequently Asked Questions
@@ -243,9 +281,6 @@ Yes — the code lives at [github.com/onkernel/kernel-mcp-server](https://github
 
 **Does Kernel store my data?**
 Only encrypted refresh tokens and minimal metadata required for auth; browser state lives in your Kernel organization and never leaves your tenancy.
-
-**What scopes are requested?**
-`browser.session`, `dom.read`, and `js.eval` by default. You can narrow scopes in your client during OAuth.
 
 **What if the handshake fails?**
 Restart your MCP client or disable/re-enable the Kernel server before opening a support ticket. Most connection issues resolve with a simple restart.
@@ -258,8 +293,8 @@ We welcome contributions! Please see our contributing guidelines:
 2. **Make your changes** and add tests if applicable
 3. **Run the linter and formatter**:
    ```bash
-   npm run lint
-   npm run format
+   bun run lint
+   bun run format
    ```
 4. **Test your changes** thoroughly
 5. **Submit a pull request** with a clear description
