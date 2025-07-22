@@ -19,6 +19,17 @@ import {
 } from "@/lib/dependency-resolver";
 import { AppAction } from "@onkernel/sdk/resources";
 
+function createKernelClient(apiKey: string) {
+  return new Kernel({
+    apiKey,
+    baseURL: process.env.API_BASE_URL,
+    defaultHeaders: {
+      "X-Source": "mcp-server",
+      "X-Referral-Source": "mcp.onkernel.com",
+    },
+  });
+}
+
 export async function OPTIONS(_req: NextRequest): Promise<Response> {
   return new Response(null, {
     status: 204,
@@ -204,10 +215,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         const result = await client.apps.list({
@@ -269,10 +277,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         // Create the invocation
@@ -378,10 +383,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         const result = await client.browsers.retrieve(id);
@@ -453,10 +455,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         const result = await client.browsers.create({
@@ -506,10 +505,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         await client.browsers.delete({
@@ -553,10 +549,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         const result = await client.deployments.retrieve(id);
@@ -600,10 +593,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         const result = await client.invocations.retrieve(id);
@@ -641,10 +631,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         const result = await client.browsers.list();
@@ -688,10 +675,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("Authentication required");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         const result = await client.deployments.list({
@@ -771,10 +755,7 @@ const handler = createMcpHandler((server) => {
         throw new Error("No files provided");
       }
 
-      const client = new Kernel({
-        apiKey: extra.authInfo.token,
-        baseURL: process.env.API_BASE_URL,
-      });
+      const client = createKernelClient(extra.authInfo.token);
 
       try {
         // Detect entrypoint
