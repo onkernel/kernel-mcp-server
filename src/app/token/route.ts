@@ -48,6 +48,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const body = await request.formData();
 
+  console.log("body", body);
+
   // Get Clerk domain
   const clerkDomain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
   if (!clerkDomain) {
@@ -64,6 +66,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     for (const [key, value] of body.entries()) {
       params.append(key, value.toString());
     }
+
+    console.log("params", params);
 
     // Exchange with Clerk
     const clerkTokenResponse = await fetch(
