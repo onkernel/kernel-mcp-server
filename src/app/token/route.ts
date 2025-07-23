@@ -92,6 +92,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const clerkTokens = await clerkTokenResponse.json();
 
+    console.log("clerkTokens", clerkTokens);
+
     // Retrieve org_id from Redis using client_id
     let orgId: string | null = null;
     const clientId = body.get("client_id") as string;
