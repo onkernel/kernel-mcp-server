@@ -48,8 +48,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const body = await request.formData();
 
-  console.log("body", body);
-
   // Get Clerk domain
   const clerkDomain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
   if (!clerkDomain) {
@@ -66,8 +64,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     for (const [key, value] of body.entries()) {
       params.append(key, value.toString());
     }
-
-    console.log("params", params);
 
     // Exchange with Clerk
     const clerkTokenResponse = await fetch(
@@ -91,8 +87,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const clerkTokens = await clerkTokenResponse.json();
-
-    console.log("clerkTokens", clerkTokens);
 
     // Retrieve org_id from Redis using client_id
     let orgId: string | null = null;
@@ -143,8 +137,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const userInfo = await userInfoResponse.json();
 
-    console.log("userInfo", userInfo);
-
     if (!userInfo.sub) {
       return createErrorResponse(
         "invalid_grant",
@@ -162,11 +154,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       clerkSession.id,
       "mcp-server-7day",
     );
-
-    console.log("mcpToken", mcpToken);
-
-    // Log decoded mcpToken
-    console.log("decoded mcpToken", jwt.decode(mcpToken.jwt));
 
     // Get the expiration time of the mcpToken
     const decodedToken = jwt.decode(mcpToken.jwt);
