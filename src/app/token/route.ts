@@ -65,6 +65,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       params.append(key, value.toString());
     }
 
+    // Determine grant_type
+    const grantType = body.get("grant_type");
+
     // Exchange with Clerk
     const clerkTokenResponse = await fetch(
       `https://${clerkDomain}/oauth/token`,
@@ -88,27 +91,39 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const clerkTokens = await clerkTokenResponse.json();
 
-    // Retrieve org_id from Redis using client_id
+    // Only look up org_id as appropriate for grant_type
     let orgId: string | null = null;
-    const clientId = body.get("client_id") as string;
 
-    try {
-      orgId = await getOrgIdForClientId({ clientId });
-    } catch (error) {
-      console.error("Failed to retrieve org_id from Redis:", error);
-      return createErrorResponse(
-        "server_error",
-        "Failed to retrieve org_id from Redis",
-        500,
-      );
-    }
-
-    if (!orgId) {
-      return createErrorResponse(
-        "server_error",
-        "Failed to retrieve org_id from Redis",
-        500,
-      );
+    if (grantType === "authorization_code") {
+      // Only do Redis lookup for authorization_code grant
+      const clientId = body.get("client_id") as string;
+      try {
+        orgId = await getOrgIdForClientId({ clientId });
+        if (orgId) {
+          console.log("Retrieved org_id from Redis:", orgId);
+        }
+      } catch (error) {
+        console.error("Failed to retrieve org_id from Redis:", error);
+        return createErrorResponse(
+          "server_error",
+          "Failed to retrieve org_id from Redis",
+          500,
+        );
+      }
+    } else if (grantType === "refresh_token") {
+      // Only check for expired_token on refresh_token grant
+      const expiredToken = body.get("expired_token") as string;
+      if (expiredToken) {
+        try {
+          const decoded = jwt.decode(expiredToken);
+          if (decoded && typeof decoded === "object" && "org_id" in decoded) {
+            orgId = decoded.org_id as string;
+            console.log("Extracted org_id from expired JWT:", orgId);
+          }
+        } catch (error) {
+          console.log("Failed to decode expired token:", error);
+        }
+      }
     }
 
     if (!clerkTokens.access_token) {
@@ -169,12 +184,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const mcpTokenResponse = {
       ...clerkTokens,
-      // Override the access_token to be the jwt id_token
       access_token: mcpToken.jwt,
       expires_in: expiresIn,
     };
 
-    // Return the modified token response
     return NextResponse.json(mcpTokenResponse, {
       headers: {
         "Access-Control-Allow-Origin": "*",
