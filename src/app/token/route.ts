@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  setOrgIdForJwt,
-  getOrgIdForClientId,
-  deleteOrgIdForClientId,
-} from "../../lib/redis";
+import { getOrgIdForClientId } from "../../lib/redis";
+import { clerkClient } from "@clerk/nextjs/server";
+import jwt from "jsonwebtoken";
 
 export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
@@ -38,6 +36,8 @@ function createErrorResponse(
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const clerk = await clerkClient();
+
   const contentType = request.headers.get("content-type");
   if (!contentType?.includes("application/x-www-form-urlencoded")) {
     return createErrorResponse(
@@ -117,20 +117,74 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Set org_id for jwt in redis with the ttl of the token
-    await setOrgIdForJwt({
-      jwt: clerkTokens.id_token,
-      orgId,
-      ttlSeconds: clerkTokens.expires_in,
+    if (!clerkTokens.access_token) {
+      return createErrorResponse(
+        "invalid_grant",
+        "Failed to retrieve access_token from Clerk",
+      );
+    }
+
+    // Call the user_info endpoint to get the user_id
+    const userInfoResponse = await fetch(
+      `https://${clerkDomain}/oauth/userinfo`,
+      {
+        headers: {
+          Authorization: `Bearer ${clerkTokens.access_token}`,
+        },
+      },
+    );
+
+    if (!userInfoResponse.ok) {
+      return createErrorResponse(
+        "invalid_grant",
+        "Failed to retrieve user_id from Clerk",
+      );
+    }
+
+    const userInfo = await userInfoResponse.json();
+
+    console.log("userInfo", userInfo);
+
+    if (!userInfo.sub) {
+      return createErrorResponse(
+        "invalid_grant",
+        "Failed to retrieve user_id from Clerk",
+      );
+    }
+
+    // Create backend clerk session
+    const clerkSession = await clerk.sessions.createSession({
+      userId: userInfo.sub as string,
     });
 
-    // Clean up the Redis entry after successful token exchange
-    await deleteOrgIdForClientId({ clientId: clientId });
+    // Create a JWT for the session from the "mcp-server-7day" jwt template
+    const mcpToken = await clerk.sessions.getToken(
+      clerkSession.id,
+      "mcp-server-7day",
+    );
+
+    console.log("mcpToken", mcpToken);
+
+    // Log decoded mcpToken
+    console.log("decoded mcpToken", jwt.decode(mcpToken.jwt));
+
+    // Get the expiration time of the mcpToken
+    const decodedToken = jwt.decode(mcpToken.jwt);
+    if (
+      !decodedToken ||
+      typeof decodedToken === "string" ||
+      !decodedToken.exp ||
+      !decodedToken.iat
+    ) {
+      return createErrorResponse("invalid_grant", "Failed to decode mcpToken");
+    }
+    const expiresIn = decodedToken.exp - decodedToken.iat;
 
     const mcpTokenResponse = {
       ...clerkTokens,
       // Override the access_token to be the jwt id_token
-      access_token: clerkTokens.id_token,
+      access_token: mcpToken.jwt,
+      expires_in: expiresIn,
     };
 
     // Return the modified token response

@@ -71,11 +71,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Store org_id in Redis with client_id as key
   try {
-    // TTL here is 1 hour, not 24 hours like JWT because this is only used for the authorization code flow
+    // TTL here needs to be long enough for a refresh_token to be used and still get the org_id via the client_id
     await setOrgIdForClientId({
       clientId,
       orgId: selectedOrgId,
-      ttlSeconds: 3600,
+      ttlSeconds: 30 * 24 * 60 * 60, // 30 days
     });
   } catch (error) {
     console.error("Failed to store org_id in Redis:", error);
