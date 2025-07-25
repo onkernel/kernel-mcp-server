@@ -108,8 +108,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Always create a state parameter to preserve org_id, even if original doesn't exist
   if (selectedOrgId) {
     try {
+      // Extract CSRF token from original state if it's base64-encoded JSON
+      let csrfToken = originalState || '';
+      
+      if (originalState) {
+        try {
+          // Try to decode originalState as base64-encoded JSON (from CLI)
+          const decodedState = Buffer.from(originalState, 'base64').toString();
+          const parsedState = JSON.parse(decodedState);
+          if (parsedState.csrf) {
+            csrfToken = parsedState.csrf;
+            console.debug("Extracted CSRF token from CLI state parameter");
+          }
+        } catch (decodeError) {
+          // If decoding fails, treat originalState as plain CSRF token
+          csrfToken = originalState;
+          console.debug("Using original state as plain CSRF token");
+        }
+      }
+
       const stateData = {
-        csrf: originalState || '', // Use empty string if no original state
+        csrf: csrfToken,
         org_id: selectedOrgId,
       };
       modifiedState = Buffer.from(JSON.stringify(stateData)).toString("base64");

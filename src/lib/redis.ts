@@ -39,7 +39,8 @@ export async function setOrgIdForClientId({
   ttlSeconds: number;
 }): Promise<void> {
   await ensureConnected();
-  await client.setEx(clientId, ttlSeconds, orgId);
+  const key = `client:${clientId}`;
+  await client.setEx(key, ttlSeconds, orgId);
 }
 
 export async function getOrgIdForClientId({
@@ -48,7 +49,8 @@ export async function getOrgIdForClientId({
   clientId: string;
 }): Promise<string | null> {
   await ensureConnected();
-  return await client.get(clientId);
+  const key = `client:${clientId}`;
+  return await client.get(key);
 }
 
 export async function setOrgIdForJwt({
@@ -62,7 +64,8 @@ export async function setOrgIdForJwt({
 }): Promise<void> {
   await ensureConnected();
   const hashedJwt = hashJwt(jwt);
-  await client.setEx(hashedJwt, ttlSeconds, orgId);
+  const key = `jwt:${hashedJwt}`;
+  await client.setEx(key, ttlSeconds, orgId);
 }
 
 export { client as redisClient };
