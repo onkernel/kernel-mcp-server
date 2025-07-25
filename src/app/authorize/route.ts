@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setOrgIdForClientId } from "../../lib/redis";
+import { SHARED_CLIENT_IDS } from "../../lib/const";
 
 export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
@@ -15,11 +16,11 @@ export async function OPTIONS(): Promise<NextResponse> {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
 
-  // Extract required parameters for basic validation
+  // Step 1: Extract and validate required OAuth parameters
   const clientId = searchParams.get("client_id");
   const selectedOrgId = searchParams.get("org_id");
 
-  // Validate minimum required parameters
+  // Step 2: Validate minimum required parameters
   if (!clientId) {
     return NextResponse.json(
       {
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // If no selected orgId, redirect to select-org
+  // Step 3: Redirect to organization selector if no org chosen yet
   if (!selectedOrgId) {
     const selectOrgUrl = new URL("/select-org", request.nextUrl.origin);
 
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(selectOrgUrl.toString());
   }
 
-  // Get Clerk configuration for upstream authentication
+  // Step 4: Validate server configuration
   const clerkDomain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
 
   if (!clerkDomain) {
@@ -69,33 +70,39 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Store org_id in Redis with client_id as key
-  try {
-    // TTL here is 1 hour, not 24 hours like JWT because this is only used for the authorization code flow
-    await setOrgIdForClientId({
-      clientId,
-      orgId: selectedOrgId,
-      ttlSeconds: 3600,
-    });
-  } catch (error) {
-    console.error("Failed to store org_id in Redis:", error);
-    return NextResponse.json(
-      {
-        error: "server_error",
-        error_description: "Failed to store organization context",
-      },
-      {
-        status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  // Step 5: Store organization context for ephemeral clients
+  // Skip Redis storage for shared clients to avoid cross-user overwrites
+  if (!SHARED_CLIENT_IDS.includes(clientId)) {
+    try {
+      // TTL here needs to be long enough for refresh_tokens to work (JWT TTL is 1 week, so 8 weeks gives buffer)
+      await setOrgIdForClientId({
+        clientId,
+        orgId: selectedOrgId,
+        ttlSeconds: 8 * 7 * 24 * 60 * 60, // 8 weeks
+      });
+      console.debug("Stored org_id in Redis for ephemeral client:", clientId);
+    } catch (error) {
+      console.error("Failed to store org_id in Redis:", error);
+      return NextResponse.json(
+        {
+          error: "server_error",
+          error_description: "Failed to store organization context",
         },
-      },
-    );
+        {
+          status: 500,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        },
+      );
+    }
+  } else {
+    console.debug("Skipping Redis storage for shared client:", clientId);
   }
 
-  // Build Clerk authorization URL with all original parameters (except org_id)
+  // Step 6: Build Clerk authorization URL with OAuth parameters
   const clerkAuthUrl = new URL(`https://${clerkDomain}/oauth/authorize`);
 
   // Pass through all original parameters except our custom org_id
@@ -105,6 +112,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   });
 
-  // Direct redirect to Clerk
+  // Step 7: Redirect to Clerk for actual OAuth authentication
   return NextResponse.redirect(clerkAuthUrl.toString());
 }
