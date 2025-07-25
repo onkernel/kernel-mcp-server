@@ -125,11 +125,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Step 5: Resolve organization context based on client type and grant type
     const clientId = body.get("client_id") as string;
     const expiredToken = body.get("expired_token");
-    
+
     const orgResult = await resolveOrgId(
-      grantType, 
-      clientId, 
-      expiredToken ? expiredToken.toString() : undefined
+      grantType,
+      clientId,
+      expiredToken ? expiredToken.toString() : undefined,
     );
     if (orgResult.error) {
       return orgResult.error;
@@ -220,7 +220,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           console.error("Failed to refresh Redis TTL:", error);
         }
       } else {
-        console.debug("Skipping Redis TTL refresh for shared client:", clientId);
+        console.debug(
+          "Skipping Redis TTL refresh for shared client:",
+          clientId,
+        );
       }
     }
 
