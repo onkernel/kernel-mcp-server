@@ -105,11 +105,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Step 6: Encode org_id into the state parameter for OAuth callback
   let modifiedState = originalState;
-  if (originalState) {
+  // Always create a state parameter to preserve org_id, even if original doesn't exist
+  if (selectedOrgId) {
     try {
-      // Create a state object that includes both the original CSRF token and org_id
       const stateData = {
-        csrf: originalState,
+        csrf: originalState || '', // Use empty string if no original state
         org_id: selectedOrgId,
       };
       modifiedState = Buffer.from(JSON.stringify(stateData)).toString("base64");
