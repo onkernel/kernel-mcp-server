@@ -19,6 +19,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Step 1: Extract and validate required OAuth parameters
   const clientId = searchParams.get("client_id");
   const selectedOrgId = searchParams.get("org_id");
+  const originalState = searchParams.get("state");
 
   // Step 2: Validate minimum required parameters
   if (!clientId) {
@@ -74,11 +75,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Skip Redis storage for shared clients to avoid cross-user overwrites
   if (!SHARED_CLIENT_IDS.includes(clientId)) {
     try {
-      // TTL here needs to be long enough for refresh_tokens to work (JWT TTL is 1 week, so 8 weeks gives buffer)
+      // TTL only needs to last through the OAuth flow (authorization_code exchange)
       await setOrgIdForClientId({
         clientId,
         orgId: selectedOrgId,
-        ttlSeconds: 8 * 7 * 24 * 60 * 60, // 8 weeks
+        ttlSeconds: 60 * 60, // 1 hour
       });
       console.debug("Stored org_id in Redis for ephemeral client:", clientId);
     } catch (error) {
@@ -102,7 +103,40 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.debug("Skipping Redis storage for shared client:", clientId);
   }
 
-  // Step 6: Build Clerk authorization URL with OAuth parameters
+  // Step 6: Encode org_id into the state parameter for OAuth callback
+  let modifiedState = originalState;
+  // Always create a state parameter to preserve org_id, even if original doesn't exist
+  if (selectedOrgId) {
+    try {
+      const stateData = {
+        csrf: originalState || '', // Use empty string if no original state
+        org_id: selectedOrgId,
+      };
+      modifiedState = Buffer.from(JSON.stringify(stateData)).toString("base64");
+      console.debug(
+        "Encoded org_id into state parameter for client:",
+        clientId,
+      );
+    } catch (error) {
+      console.error("Failed to encode org_id into state:", error);
+      return NextResponse.json(
+        {
+          error: "server_error",
+          error_description: "Failed to encode organization context",
+        },
+        {
+          status: 500,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        },
+      );
+    }
+  }
+
+  // Step 7: Build Clerk authorization URL with OAuth parameters
   const clerkAuthUrl = new URL(`https://${clerkDomain}/oauth/authorize`);
 
   // Pass through all original parameters except our custom org_id
@@ -112,6 +146,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   });
 
-  // Step 7: Redirect to Clerk for actual OAuth authentication
+  // Use the modified state parameter that includes org_id
+  if (modifiedState) {
+    clerkAuthUrl.searchParams.set("state", modifiedState);
+  }
+
+  // Step 8: Redirect to Clerk for actual OAuth authentication
   return NextResponse.redirect(clerkAuthUrl.toString());
 }
