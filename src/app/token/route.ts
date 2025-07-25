@@ -82,7 +82,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // Step 2: Validate server configuration
   const clerkDomain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
+  console.log("Environment configuration:");
+  console.log(`  NEXT_PUBLIC_CLERK_DOMAIN: ${clerkDomain}`);
+  console.log(`  NODE_ENV: ${process.env.NODE_ENV}`);
+  
   if (!clerkDomain) {
+    console.error("NEXT_PUBLIC_CLERK_DOMAIN environment variable is missing!");
     return createErrorResponse(
       "server_error",
       "Server configuration error - clerk domain not found",
@@ -100,6 +105,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const grantType = body.get("grant_type") as string;
 
     // Step 4: Exchange authorization code/refresh token with Clerk
+    console.log("Sending token exchange request to Clerk:");
+    console.log(`  Clerk domain: ${clerkDomain}`);
+    console.log(`  Token exchange URL: https://${clerkDomain}/oauth/token`);
+    console.log("  Parameters being sent:");
+    for (const [key, value] of params.entries()) {
+      console.log(`    ${key}: ${value}`);
+    }
+    
     const clerkTokenResponse = await fetch(
       `https://${clerkDomain}/oauth/token`,
       {
@@ -114,6 +127,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!clerkTokenResponse.ok) {
       const errorData = await clerkTokenResponse.text();
       console.error("Clerk token exchange failed:", errorData);
+      console.error("Request parameters sent to Clerk:");
+      for (const [key, value] of params.entries()) {
+        console.error(`  ${key}: ${value}`);
+      }
+      console.error(`Clerk domain: ${clerkDomain}`);
+      console.error(`Token exchange URL: https://${clerkDomain}/oauth/token`);
       return createErrorResponse(
         "invalid_grant",
         "Failed to exchange authorization code",
