@@ -109,12 +109,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (selectedOrgId) {
     try {
       // Extract CSRF token from original state if it's base64-encoded JSON
-      let csrfToken = originalState || '';
-      
+      let csrfToken = originalState || "";
+
       if (originalState) {
         try {
           // Try to decode originalState as base64-encoded JSON (from CLI)
-          const decodedState = Buffer.from(originalState, 'base64').toString();
+          const decodedState = Buffer.from(originalState, "base64").toString();
           const parsedState = JSON.parse(decodedState);
           if (parsedState.csrf) {
             csrfToken = parsedState.csrf;
