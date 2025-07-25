@@ -1,6 +1,29 @@
+/**
+ * OAuth Token Exchange Endpoint
+ *
+ * Organization Resolution:
+ * - For ephemeral clients (MCP): Uses Redis to store/retrieve org_id mappings
+ *   since each MCP session gets a unique client_id
+ * - For shared clients (CLI): Avoids Redis to prevent cross-user overwrites
+ *   since all CLI instances share the same client_id
+ * - For refresh requests: Attempts to extract org_id from expired JWT first,
+ *   then falls back to Redis lookup
+ *
+ * Token Creation:
+ * - Exchanges Clerk tokens for custom JWT tokens using "mcp-server-7day" template
+ * - Extends token lifetime beyond standard OAuth tokens for better UX
+ * - Embeds org_id in response when available for client context
+ *
+ * Redis TTL Management:
+ * - Refreshes TTL to 8 weeks on successful refresh_token grants (ephemeral clients only)
+ * - Provides buffer beyond 1-week JWT lifetime to ensure mapping persistence
+ */
+
 import { NextRequest, NextResponse } from "next/server";
-import { getOrgIdForClientId } from "../../lib/redis";
+import { setOrgIdForClientId } from "../../lib/redis";
 import { clerkClient } from "@clerk/nextjs/server";
+import { SHARED_CLIENT_IDS } from "../../lib/const";
+import { resolveOrgId } from "../../lib/org-utils";
 import jwt from "jsonwebtoken";
 
 export async function OPTIONS(): Promise<NextResponse> {
@@ -35,9 +58,18 @@ function createErrorResponse(
   );
 }
 
+interface ClerkTokenResponse {
+  access_token: string;
+  expires_in: number;
+  refresh_token: string;
+  token_type: string;
+  id_token?: string; // Optional, only present for authorization_code grants
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const clerk = await clerkClient();
 
+  // Step 1: Validate request format
   const contentType = request.headers.get("content-type");
   if (!contentType?.includes("application/x-www-form-urlencoded")) {
     return createErrorResponse(
@@ -48,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const body = await request.formData();
 
-  // Get Clerk domain
+  // Step 2: Validate server configuration
   const clerkDomain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
   if (!clerkDomain) {
     return createErrorResponse(
@@ -59,16 +91,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    // Convert FormData to URLSearchParams
+    // Step 3: Prepare parameters for Clerk token exchange
     const params = new URLSearchParams();
     for (const [key, value] of body.entries()) {
       params.append(key, value.toString());
     }
 
-    // Determine grant_type
-    const grantType = body.get("grant_type");
+    const grantType = body.get("grant_type") as string;
 
-    // Exchange with Clerk
+    // Step 4: Exchange authorization code/refresh token with Clerk
     const clerkTokenResponse = await fetch(
       `https://${clerkDomain}/oauth/token`,
       {
@@ -89,41 +120,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const clerkTokens = await clerkTokenResponse.json();
+    const clerkTokens: ClerkTokenResponse = await clerkTokenResponse.json();
 
-    // Only look up org_id as appropriate for grant_type
-    let orgId: string | null = null;
+    // Step 5: Resolve organization context based on client type and grant type
+    const clientId = body.get("client_id") as string;
+    const expiredToken = body.get("expired_token");
+    
+    const orgResult = await resolveOrgId(
+      grantType, 
+      clientId, 
+      expiredToken ? expiredToken.toString() : undefined
+    );
+    if (orgResult.error) {
+      return orgResult.error;
+    }
+    const orgId = orgResult.orgId;
 
-    if (grantType === "authorization_code") {
-      // Only do Redis lookup for authorization_code grant
-      const clientId = body.get("client_id") as string;
-      try {
-        orgId = await getOrgIdForClientId({ clientId });
-        if (orgId) {
-          console.log("Retrieved org_id from Redis:", orgId);
-        }
-      } catch (error) {
-        console.error("Failed to retrieve org_id from Redis:", error);
-        return createErrorResponse(
-          "server_error",
-          "Failed to retrieve org_id from Redis",
-          500,
-        );
-      }
-    } else if (grantType === "refresh_token") {
-      // Only check for expired_token on refresh_token grant
-      const expiredToken = body.get("expired_token") as string;
-      if (expiredToken) {
-        try {
-          const decoded = jwt.decode(expiredToken);
-          if (decoded && typeof decoded === "object" && "org_id" in decoded) {
-            orgId = decoded.org_id as string;
-            console.log("Extracted org_id from expired JWT:", orgId);
-          }
-        } catch (error) {
-          console.log("Failed to decode expired token:", error);
-        }
-      }
+    // Step 6: Validate organization context for ephemeral clients
+    // Shared clients can proceed without org_id as they handle it via JWT round-trip
+    if (!orgId && !SHARED_CLIENT_IDS.includes(clientId)) {
+      console.warn("No org_id resolved for ephemeral client:", clientId);
+      return createErrorResponse(
+        "invalid_grant",
+        "Unable to resolve organization context. Please re-authorize.",
+      );
     }
 
     if (!clerkTokens.access_token) {
@@ -133,7 +153,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Call the user_info endpoint to get the user_id
+    // Step 7: Get user information from Clerk
+    // This is needed because oauth-derived tokens don't include session claims
     const userInfoResponse = await fetch(
       `https://${clerkDomain}/oauth/userinfo`,
       {
@@ -159,18 +180,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Create backend clerk session
+    // Step 8: Create backend Clerk session
     const clerkSession = await clerk.sessions.createSession({
       userId: userInfo.sub as string,
     });
 
-    // Create a JWT for the session from the "mcp-server-7day" jwt template
+    // Step 9: Generate custom JWT using mcp-server-7day template
     const mcpToken = await clerk.sessions.getToken(
       clerkSession.id,
       "mcp-server-7day",
     );
 
-    // Get the expiration time of the mcpToken
+    // Step 10: Calculate token expiration time
     const decodedToken = jwt.decode(mcpToken.jwt);
     if (
       !decodedToken ||
@@ -182,6 +203,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     const expiresIn = decodedToken.exp - decodedToken.iat;
 
+    // Step 11: Maintain Redis TTL for active ephemeral clients (refresh_token only)
+    if (grantType === "refresh_token" && orgId) {
+      const clientId = body.get("client_id") as string;
+
+      if (clientId && !SHARED_CLIENT_IDS.includes(clientId)) {
+        try {
+          // Refresh TTL to 8 weeks (JWT TTL is 1 week, so this gives plenty of buffer)
+          await setOrgIdForClientId({
+            clientId,
+            orgId,
+            ttlSeconds: 8 * 7 * 24 * 60 * 60, // 8 weeks
+          });
+          console.debug("Refreshed Redis TTL for ephemeral client:", clientId);
+        } catch (error) {
+          console.error("Failed to refresh Redis TTL:", error);
+        }
+      } else {
+        console.debug("Skipping Redis TTL refresh for shared client:", clientId);
+      }
+    }
+
+    // Step 12: Build final token response
+    // Note: org_id is embedded in the JWT itself, no need to return it separately
     const mcpTokenResponse = {
       ...clerkTokens,
       access_token: mcpToken.jwt,
