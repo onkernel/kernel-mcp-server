@@ -56,7 +56,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // Step 2: Validate server configuration
   const clerkDomain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
-  
+
   if (!clerkDomain) {
     console.error("NEXT_PUBLIC_CLERK_DOMAIN environment variable is missing!");
     return createErrorResponse(
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           "Failed to retrieve id_token from Clerk",
         );
       }
-      
+
       finalJwt = clerkTokens.id_token;
       expiresIn = clerkTokens.expires_in;
     } else if (grantType === "refresh_token") {
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       await setOrgIdForJwt({
         jwt: finalJwt,
         orgId,
-        ttlSeconds: expiresIn
+        ttlSeconds: expiresIn,
       });
       console.debug("Stored JWT to org_id mapping in Redis");
     } catch (error) {
@@ -188,9 +188,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     console.error("Token exchange error:", error);
-    
+
     // If it's a Clerk error, log the detailed error information
-    if (error && typeof error === 'object' && 'clerkError' in error) {
+    if (error && typeof error === "object" && "clerkError" in error) {
       const clerkError = error as any;
       console.error("Clerk error details:");
       console.error("  Status:", clerkError.status);
@@ -198,11 +198,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (clerkError.errors && Array.isArray(clerkError.errors)) {
         console.error("  Specific errors:");
         clerkError.errors.forEach((err: any, index: number) => {
-          console.error(`    Error ${index + 1}:`, JSON.stringify(err, null, 2));
+          console.error(
+            `    Error ${index + 1}:`,
+            JSON.stringify(err, null, 2),
+          );
         });
       }
     }
-    
+
     return createErrorResponse("server_error", "Internal server error", 500);
   }
 }

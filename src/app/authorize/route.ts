@@ -112,8 +112,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         csrf: originalState,
         org_id: selectedOrgId,
       };
-      modifiedState = Buffer.from(JSON.stringify(stateData)).toString('base64');
-      console.debug("Encoded org_id into state parameter for client:", clientId);
+      modifiedState = Buffer.from(JSON.stringify(stateData)).toString("base64");
+      console.debug(
+        "Encoded org_id into state parameter for client:",
+        clientId,
+      );
     } catch (error) {
       console.error("Failed to encode org_id into state:", error);
       return NextResponse.json(

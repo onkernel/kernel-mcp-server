@@ -40,7 +40,10 @@ export async function resolveOrgId(
   if (isSharedClient) {
     // Shared clients (CLI): Use org_id from OAuth state parameter
     if (directOrgId) {
-      console.debug("Using org_id from OAuth state parameter for shared client:", directOrgId);
+      console.debug(
+        "Using org_id from OAuth state parameter for shared client:",
+        directOrgId,
+      );
       return { orgId: directOrgId };
     } else {
       console.warn("Shared client missing org_id in state parameter");
@@ -58,10 +61,15 @@ export async function resolveOrgId(
   try {
     const orgId = await getOrgIdForClientId({ clientId });
     if (orgId) {
-      console.debug(`Retrieved org_id from Redis for ephemeral client (${grantType}):`, orgId);
+      console.debug(
+        `Retrieved org_id from Redis for ephemeral client (${grantType}):`,
+        orgId,
+      );
       return { orgId };
     } else {
-      console.warn(`Ephemeral client missing org context during ${grantType} - Redis entry expired`);
+      console.warn(
+        `Ephemeral client missing org context during ${grantType} - Redis entry expired`,
+      );
       return {
         orgId: null,
         error: createErrorResponse(
@@ -71,7 +79,10 @@ export async function resolveOrgId(
       };
     }
   } catch (error) {
-    console.error(`Failed to retrieve org_id from Redis during ${grantType}:`, error);
+    console.error(
+      `Failed to retrieve org_id from Redis during ${grantType}:`,
+      error,
+    );
     return {
       orgId: null,
       error: createErrorResponse(
