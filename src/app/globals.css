@@ -126,7 +126,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image: linear-gradient(rgba(44,44,44,0.6), rgba(44,44,44,0.6)), url("./bg-overlay.png");
+    background-image: linear-gradient(color-mix(in srgb, var(--background) 60%, transparent), color-mix(in srgb, var(--background) 60%, transparent)), url("./bg-overlay.png");
     background-position: right;
     background-repeat: no-repeat;
     background-size: contain;
