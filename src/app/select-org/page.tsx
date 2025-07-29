@@ -3,7 +3,7 @@
 import { OrganizationMembershipResource } from '@clerk/types';
 import { useAuth, useOrganizationList, useUser, CreateOrganization } from '@clerk/nextjs';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense, useEffect, useRef } from 'react';
 import { Col } from '@/components/col'
 import { Row } from '@/components/row'
 
@@ -19,6 +19,9 @@ function SelectOrgContent(): React.ReactElement {
   const router = useRouter();
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgId || null);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Check if we just returned from org creation and reload to get fresh data
   useEffect(() => {
@@ -29,6 +32,21 @@ function SelectOrgContent(): React.ReactElement {
       window.location.href = newUrl.toString();
     }
   }, [searchParams]);
+
+  // Check scroll state
+  const updateScrollState = (): void => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    setCanScrollUp(scrollTop > 0);
+    setCanScrollDown(scrollTop < scrollHeight - clientHeight);
+  };
+
+  // Update scroll state when content changes
+  useEffect(() => {
+    updateScrollState();
+  }, [userMemberships?.data]);
 
   // Get the original OAuth parameters from the URL
   const originalParams = {
@@ -121,52 +139,66 @@ function SelectOrgContent(): React.ReactElement {
           )}
         </Col>
 
-        <Col className="gap-3 max-h-60 overflow-y-auto border border-border/50 rounded-lg p-2 bg-background/50 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-          {(userMemberships?.data || user?.organizationMemberships)
-            ?.sort((a: OrganizationMembershipResource, b: OrganizationMembershipResource) => {
-              // Put the currently active org first
-              if (a.organization.id === orgId) return -1;
-              if (b.organization.id === orgId) return 1;
-              return 0;
-            })
-            ?.map((membership: OrganizationMembershipResource) => {
-            const isSelected = membership.organization.id === selectedOrgId;
-            const isCurrentlyActive = membership.organization.id === orgId;
-            return (
-              <button
-                key={membership.organization.id}
-                onClick={() => handleOrgSelect(membership.organization.id)}
-                disabled={isSelecting}
-                className={`w-full p-4 text-left border rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isSelected 
-                    ? 'border-primary bg-accent ring-2 ring-primary/20' 
-                    : 'border-border hover:border-primary/50 hover:bg-accent'
-                }`}
-              >
-                <Row className="gap-3">
-                  {membership.organization.imageUrl && (
-                    <img 
-                      src={membership.organization.imageUrl} 
-                      alt={membership.organization.name}
-                      className="w-10 h-10 rounded-full"
-                    />
-                  )}
-                  <Col className="flex-1 gap-1">
-                    <Row className="justify-between items-center">
-                      <h3 className="font-medium text-foreground">{membership.organization.name}</h3>
-                      {isCurrentlyActive && (
-                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                          Active
-                        </span>
-                      )}
-                    </Row>
-                    <p className="text-sm text-muted-foreground">{membership.organization.slug}</p>
-                  </Col>
-                </Row>
-              </button>
-            );
-          })}
-        </Col>
+        <div className="relative">
+          <div 
+            ref={scrollContainerRef}
+            onScroll={updateScrollState}
+            className="flex flex-col gap-3 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
+          >
+            {(userMemberships?.data || user?.organizationMemberships)
+              ?.sort((a: OrganizationMembershipResource, b: OrganizationMembershipResource) => {
+                // Put the currently active org first
+                if (a.organization.id === orgId) return -1;
+                if (b.organization.id === orgId) return 1;
+                return 0;
+              })
+              ?.map((membership: OrganizationMembershipResource) => {
+              const isSelected = membership.organization.id === selectedOrgId;
+              const isCurrentlyActive = membership.organization.id === orgId;
+              return (
+                <button
+                  key={membership.organization.id}
+                  onClick={() => handleOrgSelect(membership.organization.id)}
+                  disabled={isSelecting}
+                  className={`w-full p-4 text-left border rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isSelected 
+                      ? 'border-primary bg-background ring-2 ring-primary/20' 
+                      : 'border-border hover:border-primary/50 hover:bg-accent/50'
+                  }`}
+                >
+                  <Row className="gap-3">
+                    {membership.organization.imageUrl && (
+                      <img 
+                        src={membership.organization.imageUrl} 
+                        alt={membership.organization.name}
+                        className="w-10 h-10 rounded-full"
+                      />
+                    )}
+                    <Col className="flex-1 gap-1">
+                      <Row className="justify-between items-center">
+                        <h3 className="font-medium text-foreground">{membership.organization.name}</h3>
+                        {isCurrentlyActive && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                            Active
+                          </span>
+                        )}
+                      </Row>
+                      <p className="text-sm text-muted-foreground">{membership.organization.slug}</p>
+                    </Col>
+                  </Row>
+                </button>
+              );
+            })}
+          </div>
+          
+          {/* Fade overlays to indicate scrollability */}
+          {canScrollUp && (
+            <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-muted to-transparent pointer-events-none" />
+          )}
+          {canScrollDown && (
+            <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-muted to-transparent pointer-events-none" />
+          )}
+        </div>
 
         <Col className="gap-4">
           <button
