@@ -162,7 +162,7 @@ function SelectOrgContent(): React.ReactElement {
                   disabled={isSelecting}
                   className={`w-full p-4 text-left border rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isSelected 
-                      ? 'border-primary bg-background ring-2 ring-primary/20' 
+                      ? 'border-primary bg-background' 
                       : 'border-border hover:border-primary/50 hover:bg-accent/50'
                   }`}
                 >
