@@ -108,7 +108,7 @@ function SelectOrgContent(): React.ReactElement {
 
   return (
     <Col className="min-h-screen items-center justify-center">
-      <Col className="max-w-md w-full mx-auto p-6 bg-card rounded-lg border border-border gap-6">
+      <Col className="max-w-md w-full mx-auto p-6 bg-muted rounded-lg gap-6">
         <Col className="text-center gap-2">
           <h1 className="text-2xl font-bold text-foreground">Select Organization</h1>
           <p className="text-muted-foreground">
@@ -121,8 +121,15 @@ function SelectOrgContent(): React.ReactElement {
           )}
         </Col>
 
-        <Col className="gap-3">
-          {(userMemberships?.data || user?.organizationMemberships)?.map((membership: OrganizationMembershipResource) => {
+        <Col className="gap-3 max-h-60 overflow-y-auto border border-border/50 rounded-lg p-2 bg-background/50 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+          {(userMemberships?.data || user?.organizationMemberships)
+            ?.sort((a: OrganizationMembershipResource, b: OrganizationMembershipResource) => {
+              // Put the currently active org first
+              if (a.organization.id === orgId) return -1;
+              if (b.organization.id === orgId) return 1;
+              return 0;
+            })
+            ?.map((membership: OrganizationMembershipResource) => {
             const isSelected = membership.organization.id === selectedOrgId;
             const isCurrentlyActive = membership.organization.id === orgId;
             return (
