@@ -126,11 +126,23 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image: linear-gradient(color-mix(in srgb, var(--background) 60%, transparent), color-mix(in srgb, var(--background) 60%, transparent)), url("./bg-overlay.png");
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background-image: url("./bg-overlay.png");
     background-position: right;
     background-repeat: no-repeat;
     background-size: contain;
     background-attachment: fixed;
+    opacity: 0.6;
+    z-index: -1;
+    pointer-events: none;
   }
 }
 
