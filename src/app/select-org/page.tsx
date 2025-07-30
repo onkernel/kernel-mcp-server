@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, Suspense, useEffect, useRef } from 'react';
 import { Col } from '@/components/col'
 import { Row } from '@/components/row'
+import { LoadingState } from '@/components/spinner/loading-state';
 
 function SelectOrgContent(): React.ReactElement {
   const { isLoaded, setActive, userMemberships } = useOrganizationList({
@@ -94,12 +95,12 @@ function SelectOrgContent(): React.ReactElement {
   if (!isLoaded || userMemberships?.isLoading) {
     return (
       <Col className="min-h-screen items-center justify-center">
-        <Col className="text-center gap-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading organizations...</p>
+        <Col className="text-center items-center gap-2">
+        <LoadingState />
+          <p className="text-muted-foreground">Loading your organizations...</p>
         </Col>
       </Col>
-    );
+    ); 
   }
 
   // Check if user has any organizations (only after loaded)
