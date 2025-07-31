@@ -19,6 +19,62 @@ import {
 } from "@/lib/dependency-resolver";
 import { AppAction } from "@onkernel/sdk/resources";
 
+// Mintlify Search API types
+interface MintlifyChunkMetadata {
+  title?: string;
+  breadcrumbs?: string[];
+  hash?: string;
+  [key: string]: unknown;
+}
+
+interface MintlifyChunk {
+  id: string;
+  link: string;
+  created_at: string;
+  updated_at: string;
+  chunk_html?: string;
+  metadata?: MintlifyChunkMetadata;
+  tracking_id: string;
+  time_stamp?: string;
+  dataset_id: string;
+  weight: number;
+  location?: Record<string, unknown>;
+  image_urls?: string[];
+  tag_set: string[];
+  num_value?: number;
+}
+
+interface MintlifyChunkWrapper {
+  chunk: MintlifyChunk;
+  highlights?: string[];
+  score: number;
+}
+
+interface MintlifyGroup {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  dataset_id: string;
+  tracking_id: string;
+  metadata: Record<string, unknown>;
+  tag_set: string[];
+}
+
+interface MintlifySearchResult {
+  group: MintlifyGroup;
+  chunks: MintlifyChunkWrapper[];
+  file_id?: string;
+}
+
+interface MintlifySearchResponse {
+  id: string;
+  results: MintlifySearchResult[];
+  corrected_query?: string;
+  total_pages: number;
+}
+
 function createKernelClient(apiKey: string) {
   return new Kernel({
     apiKey,
@@ -69,7 +125,7 @@ const handler = createMcpHandler((server) => {
   // Search Docs Tool
   server.tool(
     "search_docs",
-    "Search through comprehensive Kernel platform documentation to find relevant information, guides, tutorials, and API references. Use this tool when you need to understand how Kernel features work, troubleshoot issues, or provide accurate information about the platform capabilities.",
+    "Fast vector search through Kernel platform documentation to find relevant information, guides, tutorials, and API references. Returns ranked documentation chunks with titles, URLs, and content snippets. Use this tool when you need to understand how Kernel features work, troubleshoot issues, or provide accurate information about the platform capabilities.",
     {
       query: z
         .string()
@@ -90,6 +146,18 @@ const handler = createMcpHandler((server) => {
         };
       }
 
+      if (!process.env.MINTLIFY_DATASET_ID) {
+        console.error("MINTLIFY_DATASET_ID environment variable is not set");
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: MINTLIFY_DATASET_ID environment variable is not set",
+            },
+          ],
+        };
+      }
+
       // Check if query is provided
       if (!query) {
         console.error("No query provided to search_docs tool");
@@ -103,78 +171,131 @@ const handler = createMcpHandler((server) => {
         };
       }
 
-      const mintlifyBaseUrl = "https://api-dsc.mintlify.com/v1";
-      const domain = "docs.onkernel.com";
-      const fingerprint = extra.authInfo?.extra?.userId || "anonymous";
       const headers = {
-        Authorization: `Bearer ${process.env.MINTLIFY_API_TOKEN}`,
+        "accept": "*/*",
+        "accept-language": "en-US,en;q=0.6",
+        "authorization": process.env.MINTLIFY_API_TOKEN,
+        "tr-dataset": process.env.MINTLIFY_DATASET_ID,
+        "x-api-version": "V2",
         "Content-Type": "application/json",
       };
 
-      try {
-        // Generate a unique message ID
-        const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const searchBody = {
+        query: query,
+        search_type: "fulltext",
+        extend_results: true,
+        highlight_options: {
+          highlight_window: 10,
+          highlight_max_num: 3,
+          highlight_max_length: 5,
+          highlight_strategy: "exactmatch",
+          highlight_delimiters: ["?", ",", ".", "!", "\n", " "],
+          highlight_results: true
+        },
+        score_threshold: 0.1, // Lower threshold for broader results
+        filters: {
+          must_not: [
+            {
+              field: "tag_set",
+              match: ["code"] // Exclude code blocks as suggested
+            }
+          ]
+        },
+        page_size: 10,
+        group_size: 5, // More chunks per group for comprehensive results
+        get_total_pages: true,
+        remove_stop_words: true,
+        slim_chunks: false, // Get full chunk data
+        use_quote_negated_terms: true,
+        scoring_options: {
+          semantic_boost: {
+            phrase: query,
+            distance_factor: 1.2
+          }
+        },
+        sort_options: {
+          use_weights: true
+        },
+        typo_options: {
+          correct_typos: true,
+          prioritize_domain_specifc_words: true,
+          one_typo_word_range: {
+            min: 4,
+            max: 8
+          },
+          two_typo_word_range: {
+            min: 8,
+            max: 12
+          }
+        }
+      };
 
-        // Send the search query to Mintlify's new assistant API
-        const messageResponse = await fetch(
-          `${mintlifyBaseUrl}/assistant/${domain}/message`,
+      try {
+        const searchResponse = await fetch(
+          "https://api.mintlifytrieve.com/api/chunk_group/group_oriented_search",
           {
             method: "POST",
             headers,
-            body: JSON.stringify({
-              messages: [
-                {
-                  id: messageId,
-                  role: "user",
-                  content: query,
-                  parts: [
-                    {
-                      type: "text",
-                      text: query,
-                    },
-                  ],
-                },
-              ],
-              fp: fingerprint,
-              retrievalPageSize: 5,
-            }),
+            body: JSON.stringify(searchBody),
           },
         );
 
-        if (!messageResponse.ok) {
+        if (!searchResponse.ok) {
           console.error(
-            `Failed to send message: ${messageResponse.status} ${messageResponse.statusText}`,
+            `Failed to search documentation: ${searchResponse.status} ${searchResponse.statusText}`,
           );
           throw new Error(
-            `Failed to send message: ${messageResponse.status} ${messageResponse.statusText}`,
+            `Failed to search documentation: ${searchResponse.status} ${searchResponse.statusText}`,
           );
         }
 
-        const responseText = await messageResponse.text();
+        const searchResults: MintlifySearchResponse = await searchResponse.json();
 
-        // Parse the streaming response format from Mintlify
-        // Lines starting with '0:' contain the actual text content
-        const textLines = responseText
-          .split("\n")
-          .filter((line) => line.startsWith('0:"'))
-          .map((line) => {
-            // Extract text between quotes, handling escaped quotes
-            const match = line.match(/^0:"(.*)"/);
-            if (match) {
-              // Unescape the JSON string
-              return JSON.parse('"' + match[1] + '"');
+        // Format the search results for better readability
+        let formattedResults = "# Documentation Search Results\n\n";
+        
+        if (searchResults.results && searchResults.results.length > 0) {
+          searchResults.results.forEach((result: MintlifySearchResult, resultIndex: number) => {
+            if (result.chunks && result.chunks.length > 0) {
+              const groupName = result.group?.name || `Result Group ${resultIndex + 1}`;
+              formattedResults += `## ${groupName}\n\n`;
+              
+              result.chunks.forEach((chunkWrapper: MintlifyChunkWrapper, chunkIndex: number) => {
+                const chunk = chunkWrapper.chunk;
+                const title = chunk.metadata?.title || 'Untitled';
+                formattedResults += `### ${chunkIndex + 1}. ${title}\n\n`;
+                
+                // Add breadcrumb navigation if available
+                if (chunk.metadata?.breadcrumbs && chunk.metadata.breadcrumbs.length > 0) {
+                  formattedResults += `**Navigation:** ${chunk.metadata.breadcrumbs.join(' > ')}\n\n`;
+                }
+                
+                // Add score for relevance indication
+                formattedResults += `**Relevance Score:** ${chunkWrapper.score.toFixed(3)}\n\n`;
+                
+                if (chunk.chunk_html) {
+                  // Remove HTML tags for cleaner text
+                  const cleanText = chunk.chunk_html.replace(/<[^>]*>/g, '');
+                  formattedResults += `${cleanText}\n\n`;
+                }
+                
+                if (chunkWrapper.highlights && chunkWrapper.highlights.length > 0) {
+                  formattedResults += `**Highlights:** ${chunkWrapper.highlights.join(', ')}\n\n`;
+                }
+                
+                formattedResults += "---\n\n";
+              });
             }
-            return "";
-          })
-          .filter((text) => text.length > 0);
-
-        const cleanText = textLines.join("");
+          });
+        } else {
+          formattedResults += "No results found for your query.";
+        }
 
         return {
           content: [
             {
               type: "text",
-              text: cleanText || "No results found for your query.",
+              text: formattedResults,
             },
           ],
         };
