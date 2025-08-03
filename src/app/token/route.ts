@@ -106,13 +106,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Step 5: Resolve organization context
     const clientId = body.get("client_id") as string;
-    const directOrgId = body.get("org_id"); // Extract org_id from OAuth request
 
-    const orgResult = await resolveOrgId(
-      grantType,
-      clientId,
-      directOrgId ? directOrgId.toString() : undefined,
-    );
+    // For shared clients, extract org_id from direct parameter
+    // For ephemeral clients, rely on Redis storage
+    let directOrgId: string | undefined;
+
+    // Extract org_id from request body (shared clients only)
+    const directOrgIdParam = body.get("org_id");
+    if (directOrgIdParam) {
+      directOrgId = directOrgIdParam.toString();
+      console.debug("Using org_id from request body:", directOrgId);
+    }
+
+    const orgResult = await resolveOrgId(grantType, clientId, directOrgId);
     if (orgResult.error) {
       return orgResult.error;
     }

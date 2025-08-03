@@ -172,9 +172,9 @@ const handler = createMcpHandler((server) => {
       }
 
       const headers = {
-        "accept": "*/*",
+        accept: "*/*",
         "accept-language": "en-US,en;q=0.6",
-        "authorization": process.env.MINTLIFY_API_TOKEN,
+        authorization: process.env.MINTLIFY_API_TOKEN,
         "tr-dataset": process.env.MINTLIFY_DATASET_ID,
         "x-api-version": "V2",
         "Content-Type": "application/json",
@@ -190,16 +190,16 @@ const handler = createMcpHandler((server) => {
           highlight_max_length: 5,
           highlight_strategy: "exactmatch",
           highlight_delimiters: ["?", ",", ".", "!", "\n", " "],
-          highlight_results: true
+          highlight_results: true,
         },
         score_threshold: 0.1, // Lower threshold for broader results
         filters: {
           must_not: [
             {
               field: "tag_set",
-              match: ["code"] // Exclude code blocks as suggested
-            }
-          ]
+              match: ["code"], // Exclude code blocks as suggested
+            },
+          ],
         },
         page_size: 10,
         group_size: 5, // More chunks per group for comprehensive results
@@ -210,24 +210,24 @@ const handler = createMcpHandler((server) => {
         scoring_options: {
           semantic_boost: {
             phrase: query,
-            distance_factor: 1.2
-          }
+            distance_factor: 1.2,
+          },
         },
         sort_options: {
-          use_weights: true
+          use_weights: true,
         },
         typo_options: {
           correct_typos: true,
           prioritize_domain_specifc_words: true,
           one_typo_word_range: {
             min: 4,
-            max: 8
+            max: 8,
           },
           two_typo_word_range: {
             min: 8,
-            max: 12
-          }
-        }
+            max: 12,
+          },
+        },
       };
 
       try {
@@ -249,44 +249,59 @@ const handler = createMcpHandler((server) => {
           );
         }
 
-        const searchResults: MintlifySearchResponse = await searchResponse.json();
+        const searchResults: MintlifySearchResponse =
+          await searchResponse.json();
 
         // Format the search results for better readability
         let formattedResults = "# Documentation Search Results\n\n";
-        
+
         if (searchResults.results && searchResults.results.length > 0) {
-          searchResults.results.forEach((result: MintlifySearchResult, resultIndex: number) => {
-            if (result.chunks && result.chunks.length > 0) {
-              const groupName = result.group?.name || `Result Group ${resultIndex + 1}`;
-              formattedResults += `## ${groupName}\n\n`;
-              
-              result.chunks.forEach((chunkWrapper: MintlifyChunkWrapper, chunkIndex: number) => {
-                const chunk = chunkWrapper.chunk;
-                const title = chunk.metadata?.title || 'Untitled';
-                formattedResults += `### ${chunkIndex + 1}. ${title}\n\n`;
-                
-                // Add breadcrumb navigation if available
-                if (chunk.metadata?.breadcrumbs && chunk.metadata.breadcrumbs.length > 0) {
-                  formattedResults += `**Navigation:** ${chunk.metadata.breadcrumbs.join(' > ')}\n\n`;
-                }
-                
-                // Add score for relevance indication
-                formattedResults += `**Relevance Score:** ${chunkWrapper.score.toFixed(3)}\n\n`;
-                
-                if (chunk.chunk_html) {
-                  // Remove HTML tags for cleaner text
-                  const cleanText = chunk.chunk_html.replace(/<[^>]*>/g, '');
-                  formattedResults += `${cleanText}\n\n`;
-                }
-                
-                if (chunkWrapper.highlights && chunkWrapper.highlights.length > 0) {
-                  formattedResults += `**Highlights:** ${chunkWrapper.highlights.join(', ')}\n\n`;
-                }
-                
-                formattedResults += "---\n\n";
-              });
-            }
-          });
+          searchResults.results.forEach(
+            (result: MintlifySearchResult, resultIndex: number) => {
+              if (result.chunks && result.chunks.length > 0) {
+                const groupName =
+                  result.group?.name || `Result Group ${resultIndex + 1}`;
+                formattedResults += `## ${groupName}\n\n`;
+
+                result.chunks.forEach(
+                  (chunkWrapper: MintlifyChunkWrapper, chunkIndex: number) => {
+                    const chunk = chunkWrapper.chunk;
+                    const title = chunk.metadata?.title || "Untitled";
+                    formattedResults += `### ${chunkIndex + 1}. ${title}\n\n`;
+
+                    // Add breadcrumb navigation if available
+                    if (
+                      chunk.metadata?.breadcrumbs &&
+                      chunk.metadata.breadcrumbs.length > 0
+                    ) {
+                      formattedResults += `**Navigation:** ${chunk.metadata.breadcrumbs.join(" > ")}\n\n`;
+                    }
+
+                    // Add score for relevance indication
+                    formattedResults += `**Relevance Score:** ${chunkWrapper.score.toFixed(3)}\n\n`;
+
+                    if (chunk.chunk_html) {
+                      // Remove HTML tags for cleaner text
+                      const cleanText = chunk.chunk_html.replace(
+                        /<[^>]*>/g,
+                        "",
+                      );
+                      formattedResults += `${cleanText}\n\n`;
+                    }
+
+                    if (
+                      chunkWrapper.highlights &&
+                      chunkWrapper.highlights.length > 0
+                    ) {
+                      formattedResults += `**Highlights:** ${chunkWrapper.highlights.join(", ")}\n\n`;
+                    }
+
+                    formattedResults += "---\n\n";
+                  },
+                );
+              }
+            },
+          );
         } else {
           formattedResults += "No results found for your query.";
         }
