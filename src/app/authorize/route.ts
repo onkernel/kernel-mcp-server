@@ -103,10 +103,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.debug("Skipping Redis storage for shared client:", clientId);
   }
 
-  // Step 6: Encode org_id into the state parameter for OAuth callback
+  // Step 6: Handle state parameter based on client type
   let modifiedState = originalState;
-  // Always create a state parameter to preserve org_id, even if original doesn't exist
-  if (selectedOrgId) {
+
+  // Only modify state for shared clients (CLI), not ephemeral clients (MCP)
+  if (selectedOrgId && SHARED_CLIENT_IDS.includes(clientId)) {
     try {
       // Extract CSRF token from original state if it's base64-encoded JSON
       let csrfToken = originalState || "";
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       };
       modifiedState = Buffer.from(JSON.stringify(stateData)).toString("base64");
       console.debug(
-        "Encoded org_id into state parameter for client:",
+        "Encoded org_id into state parameter for shared client:",
         clientId,
       );
     } catch (error) {
@@ -153,6 +154,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       );
     }
+  } else if (selectedOrgId) {
+    // For ephemeral clients, don't modify state - rely on Redis storage
+    console.debug(
+      "Using Redis storage for ephemeral client, preserving original state:",
+      clientId,
+    );
   }
 
   // Step 7: Build Clerk authorization URL with OAuth parameters
