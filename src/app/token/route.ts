@@ -58,7 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const clerkDomain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
 
   if (!clerkDomain) {
-    console.error("NEXT_PUBLIC_CLERK_DOMAIN environment variable is missing!");
+    console.error("NEXT_PUBLIC_CLERK_DOMAIN environment variable is not set");
     return createErrorResponse(
       "server_error",
       "Server configuration error - clerk domain not found",
@@ -90,12 +90,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!clerkTokenResponse.ok) {
       const errorData = await clerkTokenResponse.text();
       console.error("Clerk token exchange failed:", errorData);
-      console.error("Request parameters sent to Clerk:");
-      for (const [key, value] of params.entries()) {
-        console.error(`  ${key}: ${value}`);
-      }
-      console.error(`Clerk domain: ${clerkDomain}`);
-      console.error(`Token exchange URL: https://${clerkDomain}/oauth/token`);
       return createErrorResponse(
         "invalid_grant",
         "Failed to exchange authorization code",
@@ -114,7 +108,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Extract org_id from request body (shared clients only)
     const directOrgIdParam = body.get("org_id");
     if (directOrgIdParam) {
-      directOrgId = directOrgIdParam.toString();
+      // mask the middle of the org_id
+      const orgId = directOrgIdParam.toString();
+      const maskedOrgId = orgId.slice(0, 4) + "..." + orgId.slice(-4);
+      directOrgId = maskedOrgId;
       console.debug("Using org_id from request body:", directOrgId);
     }
 
