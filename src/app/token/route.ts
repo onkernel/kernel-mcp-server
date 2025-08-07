@@ -110,9 +110,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (directOrgIdParam) {
       // mask the middle of the org_id
       const orgId = directOrgIdParam.toString();
+      directOrgId = orgId;
       const maskedOrgId = orgId.slice(0, 4) + "..." + orgId.slice(-4);
-      directOrgId = maskedOrgId;
-      console.debug("Using org_id from request body:", directOrgId);
+      console.debug("Using org_id from request body:", maskedOrgId);
     }
 
     const orgResult = await resolveOrgId(grantType, clientId, directOrgId);
