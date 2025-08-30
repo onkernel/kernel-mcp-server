@@ -841,294 +841,294 @@ const handler = createMcpHandler((server) => {
     },
   );
 
-  // Deploy App Tool
-  server.tool(
-    "deploy_app",
-    "Deploy TypeScript or Python apps to Kernel. Provide a dictionary of files where keys are relative file paths and values are file contents. This tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel.",
-    {
-      files: z
-        .record(z.string(), z.string())
-        .describe(
-          "Dictionary of files where keys are relative file paths (e.g. 'src/index.ts', 'src/utils.ts') and values are the file contents. Relative imports will work correctly as files maintain their paths.",
-        ),
-      entrypoint: z
-        .string()
-        .describe(
-          "Optional: Explicit entrypoint file path (e.g. 'src/index.ts'). If not provided, will auto-detect from common patterns.",
-        )
-        .optional(),
-      dependencies: z
-        .record(z.string(), z.string())
-        .describe(
-          "Map of package names to exact version strings for production dependencies only. These override auto-discovered runtime dependencies. Do not include dev dependencies.",
-        ),
-      version: z
-        .string()
-        .describe("Optional: Version label to deploy (default 'latest')")
-        .optional(),
-      force: z
-        .boolean()
-        .describe(
-          "If true, allow overwriting an existing version with the same label (default false)",
-        )
-        .optional(),
-    },
-    async (params, extra) => {
-      if (!extra.authInfo) {
-        throw new Error("Authentication required");
-      }
+  // // Deploy App Tool
+  // server.tool(
+  //   "deploy_app",
+  //   "Deploy TypeScript or Python apps to Kernel. Provide a dictionary of files where keys are relative file paths and values are file contents. This tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel.",
+  //   {
+  //     files: z
+  //       .record(z.string(), z.string())
+  //       .describe(
+  //         "Dictionary of files where keys are relative file paths (e.g. 'src/index.ts', 'src/utils.ts') and values are the file contents. Relative imports will work correctly as files maintain their paths.",
+  //       ),
+  //     entrypoint: z
+  //       .string()
+  //       .describe(
+  //         "Optional: Explicit entrypoint file path (e.g. 'src/index.ts'). If not provided, will auto-detect from common patterns.",
+  //       )
+  //       .optional(),
+  //     dependencies: z
+  //       .record(z.string(), z.string())
+  //       .describe(
+  //         "Map of package names to exact version strings for production dependencies only. These override auto-discovered runtime dependencies. Do not include dev dependencies.",
+  //       ),
+  //     version: z
+  //       .string()
+  //       .describe("Optional: Version label to deploy (default 'latest')")
+  //       .optional(),
+  //     force: z
+  //       .boolean()
+  //       .describe(
+  //         "If true, allow overwriting an existing version with the same label (default false)",
+  //       )
+  //       .optional(),
+  //   },
+  //   async (params, extra) => {
+  //     if (!extra.authInfo) {
+  //       throw new Error("Authentication required");
+  //     }
 
-      const {
-        files,
-        entrypoint,
-        version = "latest",
-        force = false,
-        dependencies: providedDependencies,
-      } = params;
+  //     const {
+  //       files,
+  //       entrypoint,
+  //       version = "latest",
+  //       force = false,
+  //       dependencies: providedDependencies,
+  //     } = params;
 
-      // Validate input
-      if (!files || Object.keys(files).length === 0) {
-        throw new Error("No files provided");
-      }
+  //     // Validate input
+  //     if (!files || Object.keys(files).length === 0) {
+  //       throw new Error("No files provided");
+  //     }
 
-      const client = createKernelClient(extra.authInfo.token);
+  //     const client = createKernelClient(extra.authInfo.token);
 
-      try {
-        // Detect entrypoint
-        const entrypointRelPath = detectEntrypoint(files, entrypoint);
+  //     try {
+  //       // Detect entrypoint
+  //       const entrypointRelPath = detectEntrypoint(files, entrypoint);
 
-        // Resolve dependencies from all files
-        const { discoveredPackages, dependencies: discoveredDependencies } =
-          await resolveDependencies(files, providedDependencies);
+  //       // Resolve dependencies from all files
+  //       const { discoveredPackages, dependencies: discoveredDependencies } =
+  //         await resolveDependencies(files, providedDependencies);
 
-        // Merge auto-discovered and explicitly provided dependencies
-        const resolvedDependencies = mergeDependencies(
-          discoveredDependencies,
-          providedDependencies,
-          entrypointRelPath,
-        );
+  //       // Merge auto-discovered and explicitly provided dependencies
+  //       const resolvedDependencies = mergeDependencies(
+  //         discoveredDependencies,
+  //         providedDependencies,
+  //         entrypointRelPath,
+  //       );
 
-        // Generate project files based on detected language
-        const projectFiles = generateProjectFiles(
-          entrypointRelPath,
-          resolvedDependencies,
-        );
+  //       // Generate project files based on detected language
+  //       const projectFiles = generateProjectFiles(
+  //         entrypointRelPath,
+  //         resolvedDependencies,
+  //       );
 
-        const zip = new JSZip();
-        // Add all generated project files
-        Object.entries(projectFiles).forEach(([filePath, content]) => {
-          zip.file(filePath, content);
-        });
+  //       const zip = new JSZip();
+  //       // Add all generated project files
+  //       Object.entries(projectFiles).forEach(([filePath, content]) => {
+  //         zip.file(filePath, content);
+  //       });
 
-        // Add all user files with their original paths
-        Object.entries(files).forEach(([filePath, content]) => {
-          zip.file(filePath, content);
-        });
+  //       // Add all user files with their original paths
+  //       Object.entries(files).forEach(([filePath, content]) => {
+  //         zip.file(filePath, content);
+  //       });
 
-        const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+  //       const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
 
-        // Write buffer to a temporary location so we can stream it
-        const tmpZipPath = path.join(
-          os.tmpdir(),
-          `kernel_${crypto.randomUUID()}.zip`,
-        );
-        await fs.writeFile(tmpZipPath, zipBuffer);
+  //       // Write buffer to a temporary location so we can stream it
+  //       const tmpZipPath = path.join(
+  //         os.tmpdir(),
+  //         `kernel_${crypto.randomUUID()}.zip`,
+  //       );
+  //       await fs.writeFile(tmpZipPath, zipBuffer);
 
-        try {
-          const response = await client.deployments.create(
-            {
-              file: createReadStream(tmpZipPath),
-              entrypoint_rel_path: entrypointRelPath,
-              version,
-              force,
-            },
-            { maxRetries: 0 },
-          );
+  //       try {
+  //         const response = await client.deployments.create(
+  //           {
+  //             file: createReadStream(tmpZipPath),
+  //             entrypoint_rel_path: entrypointRelPath,
+  //             version,
+  //             force,
+  //           },
+  //           { maxRetries: 0 },
+  //         );
 
-          // Follow deployment events via stream
-          let logMessages: string[] = [];
-          let finalDeployment = response;
-          let appVersionInfo: {
-            app_name: string;
-            version: string;
-            actions: AppAction[];
-          } | null = null;
+  //         // Follow deployment events via stream
+  //         let logMessages: string[] = [];
+  //         let finalDeployment = response;
+  //         let appVersionInfo: {
+  //           app_name: string;
+  //           version: string;
+  //           actions: AppAction[];
+  //         } | null = null;
 
-          try {
-            const stream = await client.deployments.follow(response.id);
+  //         try {
+  //           const stream = await client.deployments.follow(response.id);
 
-            for await (const event of stream) {
-              switch (event.event) {
-                case "log":
-                  const logMessage = event.message?.replace(/\n$/, "") || "";
-                  logMessages.push(`LOG: ${logMessage}`);
-                  break;
+  //           for await (const event of stream) {
+  //             switch (event.event) {
+  //               case "log":
+  //                 const logMessage = event.message?.replace(/\n$/, "") || "";
+  //                 logMessages.push(`LOG: ${logMessage}`);
+  //                 break;
 
-                case "deployment_state":
-                  finalDeployment = event.deployment || finalDeployment;
+  //               case "deployment_state":
+  //                 finalDeployment = event.deployment || finalDeployment;
 
-                  if (
-                    finalDeployment.status === "failed" ||
-                    finalDeployment.status === "stopped"
-                  ) {
-                    return {
-                      content: [
-                        {
-                          type: "text",
-                          text: JSON.stringify(
-                            {
-                              status: "failed",
-                              deployment: finalDeployment,
-                              logs: logMessages,
-                              discovered_packages: discoveredPackages,
-                              resolved_dependencies: resolvedDependencies,
-                              files_deployed: Object.keys(files),
-                              entrypoint: entrypointRelPath,
-                              error: `Deployment ${finalDeployment.status}: ${finalDeployment.status_reason || "Unknown error"}`,
-                            },
-                            null,
-                            2,
-                          ),
-                        },
-                      ],
-                    };
-                  }
+  //                 if (
+  //                   finalDeployment.status === "failed" ||
+  //                   finalDeployment.status === "stopped"
+  //                 ) {
+  //                   return {
+  //                     content: [
+  //                       {
+  //                         type: "text",
+  //                         text: JSON.stringify(
+  //                           {
+  //                             status: "failed",
+  //                             deployment: finalDeployment,
+  //                             logs: logMessages,
+  //                             discovered_packages: discoveredPackages,
+  //                             resolved_dependencies: resolvedDependencies,
+  //                             files_deployed: Object.keys(files),
+  //                             entrypoint: entrypointRelPath,
+  //                             error: `Deployment ${finalDeployment.status}: ${finalDeployment.status_reason || "Unknown error"}`,
+  //                           },
+  //                           null,
+  //                           2,
+  //                         ),
+  //                       },
+  //                     ],
+  //                   };
+  //                 }
 
-                  if (finalDeployment.status === "running") {
-                    // Deployment completed successfully
-                    return {
-                      content: [
-                        {
-                          type: "text",
-                          text: JSON.stringify(
-                            {
-                              status: "success",
-                              deployment: finalDeployment,
-                              app_info: appVersionInfo,
-                              logs: logMessages,
-                              discovered_packages: discoveredPackages,
-                              resolved_dependencies: resolvedDependencies,
-                              files_deployed: Object.keys(files),
-                              entrypoint: entrypointRelPath,
-                              message: "✔ Deployment completed successfully",
-                            },
-                            null,
-                            2,
-                          ),
-                        },
-                      ],
-                    };
-                  }
-                  break;
+  //                 if (finalDeployment.status === "running") {
+  //                   // Deployment completed successfully
+  //                   return {
+  //                     content: [
+  //                       {
+  //                         type: "text",
+  //                         text: JSON.stringify(
+  //                           {
+  //                             status: "success",
+  //                             deployment: finalDeployment,
+  //                             app_info: appVersionInfo,
+  //                             logs: logMessages,
+  //                             discovered_packages: discoveredPackages,
+  //                             resolved_dependencies: resolvedDependencies,
+  //                             files_deployed: Object.keys(files),
+  //                             entrypoint: entrypointRelPath,
+  //                             message: "✔ Deployment completed successfully",
+  //                           },
+  //                           null,
+  //                           2,
+  //                         ),
+  //                       },
+  //                     ],
+  //                   };
+  //                 }
+  //                 break;
 
-                case "app_version_summary":
-                  appVersionInfo = {
-                    app_name: event.app_name,
-                    version: event.version,
-                    actions: event.actions || [],
-                  };
+  //               case "app_version_summary":
+  //                 appVersionInfo = {
+  //                   app_name: event.app_name,
+  //                   version: event.version,
+  //                   actions: event.actions || [],
+  //                 };
 
-                  if (event.actions && event.actions.length > 0) {
-                    const firstAction = event.actions[0].name;
-                    logMessages.push(
-                      `App "${event.app_name}" deployed (version: ${event.version})`,
-                    );
-                    logMessages.push(
-                      `Invoke with: kernel invoke ${event.app_name} ${firstAction} --payload '{...}'`,
-                    );
-                  }
-                  break;
+  //                 if (event.actions && event.actions.length > 0) {
+  //                   const firstAction = event.actions[0].name;
+  //                   logMessages.push(
+  //                     `App "${event.app_name}" deployed (version: ${event.version})`,
+  //                   );
+  //                   logMessages.push(
+  //                     `Invoke with: kernel invoke ${event.app_name} ${firstAction} --payload '{...}'`,
+  //                   );
+  //                 }
+  //                 break;
 
-                case "error":
-                  return {
-                    content: [
-                      {
-                        type: "text",
-                        text: JSON.stringify(
-                          {
-                            status: "error",
-                            deployment: finalDeployment,
-                            logs: logMessages,
-                            discovered_packages: discoveredPackages,
-                            resolved_dependencies: resolvedDependencies,
-                            files_deployed: Object.keys(files),
-                            entrypoint: entrypointRelPath,
-                            error: `${event.error?.code || "Unknown"}: ${event.error?.message || "Unknown error"}`,
-                          },
-                          null,
-                          2,
-                        ),
-                      },
-                    ],
-                  };
-              }
-            }
+  //               case "error":
+  //                 return {
+  //                   content: [
+  //                     {
+  //                       type: "text",
+  //                       text: JSON.stringify(
+  //                         {
+  //                           status: "error",
+  //                           deployment: finalDeployment,
+  //                           logs: logMessages,
+  //                           discovered_packages: discoveredPackages,
+  //                           resolved_dependencies: resolvedDependencies,
+  //                           files_deployed: Object.keys(files),
+  //                           entrypoint: entrypointRelPath,
+  //                           error: `${event.error?.code || "Unknown"}: ${event.error?.message || "Unknown error"}`,
+  //                         },
+  //                         null,
+  //                         2,
+  //                       ),
+  //                     },
+  //                   ],
+  //                 };
+  //             }
+  //           }
 
-            // If we exit the loop without a final state, return what we have
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      status: "unknown",
-                      deployment: finalDeployment,
-                      app_info: appVersionInfo,
-                      logs: logMessages,
-                      discovered_packages: discoveredPackages,
-                      resolved_dependencies: resolvedDependencies,
-                      files_deployed: Object.keys(files),
-                      entrypoint: entrypointRelPath,
-                      message:
-                        "Deployment stream ended without clear final state",
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-            };
-          } catch (streamError) {
-            // If streaming fails, return the initial deployment response with error info
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      status: "stream_error",
-                      deployment: response,
-                      logs: logMessages,
-                      discovered_packages: discoveredPackages,
-                      resolved_dependencies: resolvedDependencies,
-                      files_deployed: Object.keys(files),
-                      entrypoint: entrypointRelPath,
-                      error: `Stream error: ${streamError instanceof Error ? streamError.message : "Unknown streaming error"}`,
-                      message: "Deployment initiated but streaming failed",
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-            };
-          }
-        } finally {
-          // Clean up temporary zip file
-          await fs.unlink(tmpZipPath).catch(() => {});
-        }
-      } catch (err) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error deploying app: ${err}`,
-            },
-          ],
-        };
-      }
-    },
-  );
+  //           // If we exit the loop without a final state, return what we have
+  //           return {
+  //             content: [
+  //               {
+  //                 type: "text",
+  //                 text: JSON.stringify(
+  //                   {
+  //                     status: "unknown",
+  //                     deployment: finalDeployment,
+  //                     app_info: appVersionInfo,
+  //                     logs: logMessages,
+  //                     discovered_packages: discoveredPackages,
+  //                     resolved_dependencies: resolvedDependencies,
+  //                     files_deployed: Object.keys(files),
+  //                     entrypoint: entrypointRelPath,
+  //                     message:
+  //                       "Deployment stream ended without clear final state",
+  //                   },
+  //                   null,
+  //                   2,
+  //                 ),
+  //               },
+  //             ],
+  //           };
+  //         } catch (streamError) {
+  //           // If streaming fails, return the initial deployment response with error info
+  //           return {
+  //             content: [
+  //               {
+  //                 type: "text",
+  //                 text: JSON.stringify(
+  //                   {
+  //                     status: "stream_error",
+  //                     deployment: response,
+  //                     logs: logMessages,
+  //                     discovered_packages: discoveredPackages,
+  //                     resolved_dependencies: resolvedDependencies,
+  //                     files_deployed: Object.keys(files),
+  //                     entrypoint: entrypointRelPath,
+  //                     error: `Stream error: ${streamError instanceof Error ? streamError.message : "Unknown streaming error"}`,
+  //                     message: "Deployment initiated but streaming failed",
+  //                   },
+  //                   null,
+  //                   2,
+  //                 ),
+  //               },
+  //             ],
+  //           };
+  //         }
+  //       } finally {
+  //         // Clean up temporary zip file
+  //         await fs.unlink(tmpZipPath).catch(() => {});
+  //       }
+  //     } catch (err) {
+  //       return {
+  //         content: [
+  //           {
+  //             type: "text",
+  //             text: `Error deploying app: ${err}`,
+  //           },
+  //         ],
+  //       };
+  //     }
+  //   },
+  // );
 });
 
 async function handleAuthenticatedRequest(req: NextRequest): Promise<Response> {
