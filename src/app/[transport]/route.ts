@@ -841,111 +841,111 @@ const handler = createMcpHandler((server) => {
     },
   );
 
-  // Browser Agent Tool (one-off NL web task)
-  server.tool(
-    "browser_agent",
-    "Run a one-off browser automation task in Kernel using a chat-style instruction. Optionally provide a starting URL.",
-    {
-      task: z
-        .string()
-        .describe("Natural language instruction for the browser task (required)"),
-      url: z
-        .string()
-        .url()
-        .describe("Optional starting URL to open before executing the task")
-        .optional(),
-    },
-    async (
-      { task, url },
-      extra,
-    ) => {
-      if (!extra.authInfo) {
-        throw new Error("Authentication required");
-      }
+  // // Browser Agent Tool (one-off NL web task)
+  // server.tool(
+  //   "browser_agent",
+  //   "Run a one-off browser automation task in Kernel using a chat-style instruction. Optionally provide a starting URL.",
+  //   {
+  //     task: z
+  //       .string()
+  //       .describe("Natural language instruction for the browser task (required)"),
+  //     url: z
+  //       .string()
+  //       .url()
+  //       .describe("Optional starting URL to open before executing the task")
+  //       .optional(),
+  //   },
+  //   async (
+  //     { task, url },
+  //     extra,
+  //   ) => {
+  //     if (!extra.authInfo) {
+  //       throw new Error("Authentication required");
+  //     }
 
-      const client = createKernelClient(extra.authInfo.token);
+  //     const client = createKernelClient(extra.authInfo.token);
 
-      try {
-        // Invoke the deployed app action
-        const payloadObj: Record<string, unknown> = { task };
-        if (url) payloadObj.url = url;
+  //     try {
+  //       // Invoke the deployed app action
+  //       const payloadObj: Record<string, unknown> = { task };
+  //       if (url) payloadObj.url = url;
 
-        const invocation = await client.invocations.create({
-          app_name: "mcp-browser-agent",
-          action_name: "task-agent",
-          payload: JSON.stringify(payloadObj),
-          version: "latest",
-          async: true,
-        });
+  //       const invocation = await client.invocations.create({
+  //         app_name: "mcp-browser-agent",
+  //         action_name: "task-agent",
+  //         payload: JSON.stringify(payloadObj),
+  //         version: "latest",
+  //         async: true,
+  //       });
 
-        if (!invocation) {
-          throw new Error("Failed to create invocation");
-        }
+  //       if (!invocation) {
+  //         throw new Error("Failed to create invocation");
+  //       }
 
-        const stream = await client.invocations.follow(invocation.id);
-        let finalResult = invocation;
+  //       const stream = await client.invocations.follow(invocation.id);
+  //       let finalResult = invocation;
 
-        for await (const evt of stream) {
-          switch (evt.event) {
-            case "error":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(
-                      {
-                        status: "error",
-                        message: "An error occurred during invocation",
-                        invocation_id: invocation.id,
-                        error: evt,
-                      },
-                      null,
-                      2,
-                    ),
-                  },
-                ],
-              };
-            case "invocation_state":
-              finalResult = evt.invocation || finalResult;
-              if (
-                finalResult.status === "succeeded" ||
-                finalResult.status === "failed"
-              ) {
-                break;
-              }
-              break;
-            default:
-              break;
-          }
+  //       for await (const evt of stream) {
+  //         switch (evt.event) {
+  //           case "error":
+  //             return {
+  //               content: [
+  //                 {
+  //                   type: "text",
+  //                   text: JSON.stringify(
+  //                     {
+  //                       status: "error",
+  //                       message: "An error occurred during invocation",
+  //                       invocation_id: invocation.id,
+  //                       error: evt,
+  //                     },
+  //                     null,
+  //                     2,
+  //                   ),
+  //                 },
+  //               ],
+  //             };
+  //           case "invocation_state":
+  //             finalResult = evt.invocation || finalResult;
+  //             if (
+  //               finalResult.status === "succeeded" ||
+  //               finalResult.status === "failed"
+  //             ) {
+  //               break;
+  //             }
+  //             break;
+  //           default:
+  //             break;
+  //         }
 
-          if (
-            finalResult.status === "succeeded" ||
-            finalResult.status === "failed"
-          ) {
-            break;
-          }
-        }
+  //         if (
+  //           finalResult.status === "succeeded" ||
+  //           finalResult.status === "failed"
+  //         ) {
+  //           break;
+  //         }
+  //       }
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(finalResult, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error running browser agent: ${error}`,
-            },
-          ],
-        };
-      }
-    },
-  );
+  //       return {
+  //         content: [
+  //           {
+  //             type: "text",
+  //             text: JSON.stringify(finalResult, null, 2),
+  //           },
+  //         ],
+  //       };
+  //     } catch (error) {
+  //       return {
+  //         content: [
+  //           {
+  //             type: "text",
+  //             text: `Error running browser agent: ${error}`,
+  //           },
+  //         ],
+  //       };
+  //     }
+  //   },
+  // );
 
   // // Deploy App Tool
   // server.tool(
