@@ -570,10 +570,10 @@ const handler = createMcpHandler((server) => {
           "Unique string identifier for browser session persistence. If a browser with this ID exists, Kernel reuses it with all saved state (cookies, authentication, cache). If not found, creates a new browser with this ID for future reuse. Can be any string to match users, environments, websites, etc.",
         )
         .optional(),
-      replay: z
-        .boolean()
+      timeout_seconds: z
+        .number()
         .describe(
-          "If true, records all browser interactions for later playback and analysis. Useful for debugging automation scripts.",
+          "The number of seconds of inactivity before the browser session is terminated. Only applicable to non-persistent browsers. Activity includes CDP connections and live view connections. Defaults to 60 seconds.",
         )
         .optional(),
       stealth: z
@@ -584,7 +584,7 @@ const handler = createMcpHandler((server) => {
         .optional(),
     },
     async (
-      { headless, invocation_id, persistence_id, replay, stealth },
+      { headless, invocation_id, persistence_id, stealth, timeout_seconds },
       extra,
     ) => {
       if (!extra.authInfo) {
@@ -594,20 +594,20 @@ const handler = createMcpHandler((server) => {
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        const result = await client.browsers.create({
+        const kernelBrowser = await client.browsers.create({
           ...(headless && { headless: headless }),
           ...(invocation_id && { invocation_id: invocation_id }),
           ...(persistence_id && { persistence: { id: persistence_id } }),
-          ...(replay && { replay: replay }),
           ...(stealth && { stealth: stealth }),
+          ...(timeout_seconds && { timeout_seconds: timeout_seconds }),
         });
 
         return {
           content: [
             {
               type: "text",
-              text: result
-                ? JSON.stringify(result, null, 2)
+              text: kernelBrowser
+                ? JSON.stringify(kernelBrowser, null, 2)
                 : "Failed to create browser session",
             },
           ],
@@ -834,6 +834,112 @@ const handler = createMcpHandler((server) => {
             {
               type: "text",
               text: `Error fetching deployments: ${error}`,
+            },
+          ],
+        };
+      }
+    },
+  );
+
+  // Browser Agent Tool (one-off NL web task)
+  server.tool(
+    "browser_agent",
+    "Run a one-off browser automation task in Kernel using a chat-style instruction. Optionally provide a starting URL.",
+    {
+      task: z
+        .string()
+        .describe("Natural language instruction for the browser task (required)"),
+      url: z
+        .string()
+        .url()
+        .describe("Optional starting URL to open before executing the task")
+        .optional(),
+    },
+    async (
+      { task, url },
+      extra,
+    ) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const client = createKernelClient(extra.authInfo.token);
+
+      try {
+        // Invoke the deployed app action
+        const payloadObj: Record<string, unknown> = { task };
+        if (url) payloadObj.url = url;
+
+        const invocation = await client.invocations.create({
+          app_name: "mcp-browser-agent",
+          action_name: "task-agent",
+          payload: JSON.stringify(payloadObj),
+          version: "latest",
+          async: true,
+        });
+
+        if (!invocation) {
+          throw new Error("Failed to create invocation");
+        }
+
+        const stream = await client.invocations.follow(invocation.id);
+        let finalResult = invocation;
+
+        for await (const evt of stream) {
+          switch (evt.event) {
+            case "error":
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify(
+                      {
+                        status: "error",
+                        message: "An error occurred during invocation",
+                        invocation_id: invocation.id,
+                        error: evt,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+              };
+            case "invocation_state":
+              finalResult = evt.invocation || finalResult;
+              if (
+                finalResult.status === "succeeded" ||
+                finalResult.status === "failed"
+              ) {
+                break;
+              }
+              break;
+            default:
+              break;
+          }
+
+          if (
+            finalResult.status === "succeeded" ||
+            finalResult.status === "failed"
+          ) {
+            break;
+          }
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(finalResult, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error running browser agent: ${error}`,
             },
           ],
         };
