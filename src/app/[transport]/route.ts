@@ -11,6 +11,7 @@ import path from "path";
 import os from "os";
 import crypto from "crypto";
 import JSZip from "jszip";
+import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   resolveDependencies,
   generateProjectFiles,
@@ -944,6 +945,193 @@ const handler = createMcpHandler((server) => {
           ],
         };
       }
+    },
+  );
+
+  // Prompts
+  server.prompt(
+    "browser_task",
+    "Create a concise, step-by-step plan for a browser automation task and prepare to run it via Kernel. Use with browser_agent tool.",
+    {
+      task: z
+        .string()
+        .describe(
+          "Natural language description of what to do in the browser (required)",
+        ),
+      url: z
+        .string()
+        .url()
+        .describe("Optional starting URL")
+        .optional(),
+    },
+    ({ task, url }, _extra) => {
+      const startUrl = url ? `\nStart URL: ${url}` : "";
+      return {
+        messages: [
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text:
+                "You are a careful browser automation planner for Kernel's cloud browsers. Produce a short numbered plan, call out risks (popups, auth, infinite scroll), and note success criteria. Prefer reusing persistent sessions when appropriate.",
+            },
+          },
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Task:${startUrl}\n${task}`,
+            },
+          },
+        ],
+      };
+    },
+  );
+
+  server.prompt(
+    "kernel_docs_lookup",
+    "Formulate a precise documentation search and summarize relevant Kernel docs. Intended to be used alongside the search_docs tool.",
+    {
+      query: z
+        .string()
+        .describe(
+          "What you want to find in the Kernel documentation (required)",
+        ),
+    },
+    ({ query }, _extra) => {
+      return {
+        messages: [
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text:
+                "Search the Kernel docs precisely, prefer official guides and reference pages, and cite page titles with URLs. Summarize only what answers the question, include short code snippets if essential.",
+            },
+          },
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Search query: ${query}`,
+            },
+          },
+        ],
+      };
+    },
+  );
+
+  // Resources: Apps and Browsers (read-only discovery)
+  server.resource(
+    "kernel-apps",
+    new ResourceTemplate("kernel://apps", { list: undefined }),
+    {
+      title: "Kernel Apps",
+      description: "List apps available in this organization",
+      mimeType: "application/json",
+    },
+    async (uri, _params, extra) => {
+      if (!extra?.authInfo) {
+        throw new Error("Authentication required");
+      }
+      const client = createKernelClient(extra.authInfo.token);
+      const apps = await client.apps.list({});
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: JSON.stringify({ apps }, null, 2),
+            mimeType: "application/json",
+          },
+        ],
+      };
+    },
+  );
+
+  server.resource(
+    "kernel-app",
+    new ResourceTemplate("kernel://apps/{app_name}", { list: undefined }),
+    {
+      title: "Kernel App Details",
+      description: "Details and actions for a specific app",
+      mimeType: "application/json",
+    },
+    async (uri, { app_name }, extra) => {
+      if (!extra?.authInfo) {
+        throw new Error("Authentication required");
+      }
+      if (!app_name) {
+        throw new Error("Missing app_name");
+      }
+      const client = createKernelClient(extra.authInfo.token);
+      const value = Array.isArray(app_name) ? app_name[0] : app_name;
+      const apps = await client.apps.list({ app_name: value });
+      const app = Array.isArray(apps) ? apps[0] : null;
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: JSON.stringify({ app_name: value, app }, null, 2),
+            mimeType: "application/json",
+          },
+        ],
+      };
+    },
+  );
+
+  server.resource(
+    "kernel-browsers",
+    new ResourceTemplate("kernel://browsers", { list: undefined }),
+    {
+      title: "Kernel Browsers",
+      description: "List active browser sessions",
+      mimeType: "application/json",
+    },
+    async (uri, _params, extra) => {
+      if (!extra?.authInfo) {
+        throw new Error("Authentication required");
+      }
+      const client = createKernelClient(extra.authInfo.token);
+      const browsers = await client.browsers.list();
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: JSON.stringify({ browsers }, null, 2),
+            mimeType: "application/json",
+          },
+        ],
+      };
+    },
+  );
+
+  server.resource(
+    "kernel-browser",
+    new ResourceTemplate("kernel://browsers/{id}", { list: undefined }),
+    {
+      title: "Kernel Browser Details",
+      description: "Details for a specific browser session",
+      mimeType: "application/json",
+    },
+    async (uri, { id }, extra) => {
+      if (!extra?.authInfo) {
+        throw new Error("Authentication required");
+      }
+      if (!id) {
+        throw new Error("Missing id");
+      }
+      const client = createKernelClient(extra.authInfo.token);
+      const browserId = Array.isArray(id) ? id[0] : id;
+      const browser = await client.browsers.retrieve(browserId);
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: JSON.stringify({ id: browserId, browser }, null, 2),
+            mimeType: "application/json",
+          },
+        ],
+      };
     },
   );
 
