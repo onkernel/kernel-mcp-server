@@ -841,7 +841,7 @@ const handler = createMcpHandler((server) => {
     },
   );
 
-  // Browser Agent Tool (one-off NL web task)
+  // Browser Agent Tool (one-off NL web task) - assumes you have deployed the mcp-browser-agent app
   server.tool(
     "browser_agent",
     "Run a one-off browser automation task in Kernel using a chat-style instruction. Optionally provide a starting URL.",
