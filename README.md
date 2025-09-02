@@ -24,75 +24,35 @@ The Kernel MCP Server bridges AI assistants (like Claude, Cursor, or other MCP-c
 
 The server uses OAuth 2.0 authentication via [Clerk](https://clerk.com) to ensure secure access to your Kernel resources.
 
-## 🎯 First Time? Start Here!
+For a deeper dive into why and how we built this server, see our blog post: [Introducing Kernel MCP Server](https://blog.onkernel.com/p/introducing-kernel-mcp-server).
 
-**Ready to try Kernel but don't see any apps yet?** Perfect! Here's how to get started:
+## Setup Instructions
 
-### Step 1: Install Kernel MCP Server
+### General (Transports)
 
-Install the Kernel MCP server to your favorite MCP client using the [setup instructions](#-mcp-server-setup) below.
+- Streamable HTTP (recommended): `https://mcp.onkernel.com/mcp`
+- stdio via `mcp-remote` (for clients without remote MCP support): `npx -y mcp-remote https://mcp.onkernel.com/mcp`
 
-### Step 2: Ask Your AI Assistant for Help
+Use the streamable HTTP endpoint where supported for increased reliability. If your client does not support remote MCP, use `mcp-remote` over stdio.
 
-Once connected, simply ask in your MCP client chat:
+Kernel's server is a centrally hosted, authenticated remote MCP using OAuth 2.1 with dynamic client registration.
 
-```
-"How do I get a Kernel sample app set up locally?"
-```
-
-Your AI assistant will use the `search_docs` tool to get you the latest quickstart instructions and guide you through setting up your first Kernel app!
-
-### Step 3: Deploy & Test with MCP Tools
-
-After you have a sample app locally, ask your assistant:
-
-```
-"Deploy my sample app to Kernel"
-```
-
-> **Note:** Be patient and wait until all tool parameters are fully generated before running the tool call.
-
-Then test it:
-
-```
-"Run my app and get the title from onkernel.com"
-```
-
-### Why This Approach?
-
-- ✅ **Always up-to-date** - Your AI assistant fetches the latest docs
-- ✅ **Interactive guidance** - Get help customized to your setup
-- ✅ **Learn MCP tools** - Experience the power of `search_docs`, `deploy_app`, and `invoke_action`
-- ✅ **End-to-end workflow** - From local development to cloud deployment to execution
-
-### What You'll Experience
-
-Your AI assistant will help you:
-
-- Download and understand sample apps (`search_docs`)
-- Deploy your local code to the cloud (`deploy_app`)
-- Run actions and see results (`invoke_action`)
-- Create browser sessions in the cloud (`create_browser`)
-- Monitor deployments (`list_deployments`, `get_deployment`)
-
-## 🚀 MCP Server Setup
-
-First, add the Kernel MCP server to your favorite MCP-compatible client using `https://mcp.onkernel.com/mcp`. Here are setup instructions for popular clients:
+## Connect in your client
 
 ### Claude
 
 #### Team & Enterprise (Claude.ai)
 
-1. Navigate to **Settings** in the sidebar (web or desktop).
-2. Scroll to **Integrations** and click **Add more**.
-3. Fill in:
-   - **Integration name:** `Kernel`
-   - **Integration URL:** `https://mcp.onkernel.com/mcp`
-4. Start a chat, enable **Tools**, and finish auth.
+1. Go to **Settings → Connectors → Add custom connector**.
+2. Enter: **Integration name:** `Kernel`, **Integration URL:** `https://mcp.onkernel.com/mcp`, then click **Add**.
+3. In **Settings → Connectors**, click **Connect** next to `Kernel` to launch OAuth and approve.
+4. In chat, click **Search and tools** and enable the Kernel tools if needed.
+
+> On Claude for Work (Team/Enterprise), only Primary Owners or Owners can enable custom connectors for the org. After it's configured, each user still needs to go to **Settings → Connectors** and click **Connect** to authorize it for their account.
 
 #### Free & Pro (Claude desktop)
 
-Open `~/Library/Application Support/Claude/claude_desktop_config.json` and add:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart Claude:
 
 ```json
 {
@@ -105,26 +65,23 @@ Open `~/Library/Application Support/Claude/claude_desktop_config.json` and add:
 }
 ```
 
-Restart the Claude desktop app.
-
 #### Claude Code CLI
 
 ```bash
 claude mcp add --transport http kernel https://mcp.onkernel.com/mcp
-# then, inside the REPL:
-/mcp   # to run through auth
+# Then in the REPL run once to authenticate:
+/mcp
 ```
 
 ### Cursor
 
-[Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=kernel&config=eyJ1cmwiOiJodHRwczovL21jcC5vbmtlcm5lbC5jb20vbWNwIn0%3D)
+Click [here](cursor://anysphere.cursor-deeplink/mcp/install?name=kernel&config=eyJ1cmwiOiJodHRwczovL21jcC5vbmtlcm5lbC5jb20vbWNwIn0%3D) to install Kernel on Cursor.
 
-#### Manual Setup
+#### Manual setup
 
-1. Press **⌘/Ctrl Shift J** to open settings.
-2. Click **Tools & Integrations**.
-3. Click **New MCP server**.
-4. Add the following configuration:
+1. Press **⌘/Ctrl Shift J**.
+2. Go to **Tools & Integrations → New MCP server**.
+3. Add this configuration:
 
 ```json
 {
@@ -136,25 +93,37 @@ claude mcp add --transport http kernel https://mcp.onkernel.com/mcp
 }
 ```
 
-5. Save and the server will be available.
+4. Save. The server will appear in Tools.
 
 ### Goose
 
-[Add to Goose](goose://extension?cmd=npx&arg=-y&arg=mcp-remote&arg=https%3A%2F%2Fmcp.onkernel.com%2Fmcp&timeout=300&id=kernel&name=Kernel&description=Access%20Kernel%27s%20cloud-based%20browsers%20via%20MCP)
+Click [here](goose://extension?cmd=npx&arg=-y&arg=mcp-remote&arg=https%3A%2F%2Fmcp.onkernel.com%2Fmcp&timeout=300&id=kernel&name=Kernel&description=Access%20Kernel%27s%20cloud-based%20browsers%20via%20MCP) to install Kernel on Goose in one click.
 
 #### Goose Desktop
 
-1. Click `...` in the top right corner of the Goose Desktop.
-2. Select `Advanced Settings` from the menu.
-3. Under `Extensions`, click `Add custom extension`.
-4. On the `Add custom extension` modal, enter:
-   - **Type**: `Streaming HTTP`
-   - **ID**: `kernel`
-   - **Name**: `Kernel`
+1. Click `Extensions` in the sidebar of the Goose Desktop.
+2. Click `Add custom extension`.
+3. On the `Add custom extension` modal, enter:
+   - **Extension Name**: `Kernel`
+   - **Type**: `STDIO`
    - **Description**: `Access Kernel's cloud-based browsers via MCP`
-   - **URL**: `https://mcp.onkernel.com/mcp`
+   - **Command**: `npx -y mcp-remote https://mcp.onkernel.com/mcp`
    - **Timeout**: `300`
-5. Click `Add` button.
+4. Click `Save Changes` button.
+
+#### Goose CLI
+
+1. Run the following command:
+   ```bash
+   goose configure
+   ```
+2. Select `Add Extension` from the menu.
+3. Choose `Command-line Extension`.
+4. Follow the prompts:
+   - **Extension name**: `Kernel`
+   - **Command**: `npx -y mcp-remote https://mcp.onkernel.com/mcp`
+   - **Timeout**: `300`
+   - **Description**: `Access Kernel's cloud-based browsers via MCP`
 
 ### Visual Studio Code
 
@@ -175,13 +144,13 @@ claude mcp add --transport http kernel https://mcp.onkernel.com/mcp
    ```bash
    npx -y mcp-remote https://mcp.onkernel.com/mcp
    ```
-4. Name the server **Kernel** and press Enter.
+4. Name the server **Kernel** → Enter.
 5. Activate via **MCP: List Servers → Kernel → Start Server**.
 
 ### Windsurf
 
 1. Press **⌘/Ctrl ,** to open settings.
-2. Navigate **Cascade → MCP servers** → **Add custom server**.
+2. Go to **Cascade → MCP servers → Add custom server**.
 3. Paste:
 
 ```json
@@ -224,41 +193,34 @@ Many other MCP-capable tools accept:
 
 Configure these values wherever the tool expects MCP server settings.
 
-## 🛠️ Available MCP Tools
+## Tools
 
-The server provides these tools for AI assistants:
+### Browser Automation
+- `create_browser` - Launch a new browser session
+- `get_browser` - Get browser session information
+- `list_browsers` - List active browser sessions
+- `delete_browser` - Terminate a browser session
 
-### Application Management
-
-- `deploy_app` - Deploy TypeScript or Python apps to Kernel
+### App Management
 - `list_apps` - List apps in your Kernel organization
 - `invoke_action` - Execute actions in Kernel apps
 - `get_deployment` - Get deployment status and logs
 - `list_deployments` - List all deployments
 - `get_invocation` - Get action invocation details
 
-### Browser Automation
-
-- `create_browser` - Launch a new browser session
-- `get_browser` - Get browser session information
-- `delete_browser` - Terminate a browser session
-- `list_browsers` - List active browser sessions
-
 ### Documentation & Search
-
 - `search_docs` - Search Kernel platform documentation and guides
 
-## 📚 Usage Examples
+## Troubleshooting
 
-### Deploy Local Apps to the Cloud
+- Cursor clean reset: ⌘/Ctrl Shift P → run `Cursor: Clear All MCP Tokens` (resets all MCP servers and auth; re-enable Kernel and re-authenticate).
+- Clear saved auth and retry: `rm -rf ~/.mcp-auth`
+- Ensure a recent Node.js version when using `npx mcp-remote`
+- If behind strict networks, try stdio via `mcp-remote`, or explicitly set the transport your client supports
 
-```
-Human: I have a Kernel Playwright automation script open in my editor. Can you deploy it to Kernel?
-Assistant: I'll read your local files and deploy them to Kernel for you.
-[Uses deploy_app tool to upload your code and create a cloud deployment]
-```
+## Examples
 
-### Invoke Apps from Anywhere
+### Invoke apps from anywhere
 
 ```
 Human: Run my web-scraper app to get data from reddit.com
@@ -266,24 +228,13 @@ Assistant: I'll execute your web-scraper action with reddit.com as the target.
 [Uses invoke_action tool to run your deployed app in the cloud]
 ```
 
-### Create Persistent Browser Sessions
+### Create persistent browser sessions
 
 ```
 Human: Create a stealth browser session that I can reuse for testing login flows
 Assistant: I'll create a persistent, stealth-enabled browser that maintains state between uses.
 [Uses create_browser tool with persistence and stealth options]
 ```
-
-## ❓ Frequently Asked Questions
-
-**Is the server open source?**
-Yes — the code lives at [github.com/onkernel/kernel-mcp-server](https://github.com/onkernel/kernel-mcp-server). You're welcome to browse the code and contribute. We provide a hosted instance at `https://mcp.onkernel.com/mcp` for convenience.
-
-**Does Kernel store my data?**
-Only encrypted refresh tokens and minimal metadata required for auth; browser state lives in your Kernel organization and never leaves your tenancy.
-
-**What if the handshake fails?**
-Restart your MCP client or disable/re-enable the Kernel server before opening a support ticket. Most connection issues resolve with a simple restart.
 
 ## 🤝 Contributing
 
