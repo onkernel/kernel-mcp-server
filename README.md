@@ -41,7 +41,9 @@ Kernel's server is a centrally hosted, authenticated remote MCP using OAuth 2.1 
 
 ### Claude
 
-#### Team & Enterprise (Claude.ai)
+> Our remote MCP server is not compatible with the method Free users of Claude use to add MCP servers.
+
+#### Pro, Max, Team & Enterprise (Claude.ai and Claude Desktop)
 
 1. Go to **Settings → Connectors → Add custom connector**.
 2. Enter: **Integration name:** `Kernel`, **Integration URL:** `https://mcp.onkernel.com/mcp`, then click **Add**.
@@ -49,21 +51,6 @@ Kernel's server is a centrally hosted, authenticated remote MCP using OAuth 2.1 
 4. In chat, click **Search and tools** and enable the Kernel tools if needed.
 
 > On Claude for Work (Team/Enterprise), only Primary Owners or Owners can enable custom connectors for the org. After it's configured, each user still needs to go to **Settings → Connectors** and click **Connect** to authorize it for their account.
-
-#### Free & Pro (Claude desktop)
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart Claude:
-
-```json
-{
-  "mcpServers": {
-    "kernel": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.onkernel.com/mcp"]
-    }
-  }
-}
-```
 
 #### Claude Code CLI
 
