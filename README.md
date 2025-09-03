@@ -67,7 +67,7 @@ Click [here](cursor://anysphere.cursor-deeplink/mcp/install?name=kernel&config=e
 #### Manual setup
 
 1. Press **⌘/Ctrl Shift J**.
-2. Go to **Tools & Integrations → New MCP server**.
+2. Go to **MCP & Integrations → New MCP server**.
 3. Add this configuration:
 
 ```json
