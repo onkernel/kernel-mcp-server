@@ -67,7 +67,7 @@ Click [here](cursor://anysphere.cursor-deeplink/mcp/install?name=kernel&config=e
 #### Manual setup
 
 1. Press **⌘/Ctrl Shift J**.
-2. Go to **Tools & Integrations → New MCP server**.
+2. Go to **MCP & Integrations → New MCP server**.
 3. Add this configuration:
 
 ```json
@@ -118,26 +118,22 @@ Click [here](goose://extension?cmd=npx&arg=-y&arg=mcp-remote&arg=https%3A%2F%2Fm
 {
   "mcpServers": {
     "kernel": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.onkernel.com/mcp"]
+      "url": "https://mcp.onkernel.com/mcp",
+      "type": "http"
     }
   }
 }
 ```
 
 1. Press **⌘/Ctrl P** → search **MCP: Add Server**.
-2. Select **Command (stdio)**.
-3. Enter:
-   ```bash
-   npx -y mcp-remote https://mcp.onkernel.com/mcp
-   ```
+2. Select **HTTP (HTTP or Server-Sent Events)**.
+3. Enter: `https://mcp.onkernel.com/mcp`
 4. Name the server **Kernel** → Enter.
-5. Activate via **MCP: List Servers → Kernel → Start Server**.
 
 ### Windsurf
 
 1. Press **⌘/Ctrl ,** to open settings.
-2. Go to **Cascade → MCP servers → Add custom server**.
+2. Navigate **Cascade → MCP servers → View raw config**.
 3. Paste:
 
 ```json
@@ -151,20 +147,20 @@ Click [here](goose://extension?cmd=npx&arg=-y&arg=mcp-remote&arg=https%3A%2F%2Fm
 }
 ```
 
+4. On **Manage MCPs**, click **Refresh** to load Kernel MCP.
+
 ### Zed
 
-Open `settings.json` and add:
+1. Press **⌘/Ctrl ,** to open settings.
+2. Paste:
 
 ```json
 {
   "context_servers": {
     "kernel": {
-      "command": {
-        "path": "npx",
-        "args": ["-y", "mcp-remote", "https://mcp.onkernel.com/mcp"],
-        "env": {}
-      },
-      "settings": {}
+      "source": "custom",
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.onkernel.com/mcp"]
     }
   }
 }
@@ -176,7 +172,15 @@ Many other MCP-capable tools accept:
 
 - **Command:** `npx`
 - **Arguments:** `-y mcp-remote https://mcp.onkernel.com/mcp`
-- **Environment:** _(none)_
+
+```json
+{
+  "kernel": {
+    "command": "npx",
+    "args": ["-y", "mcp-remote", "https://mcp.onkernel.com/mcp"]
+  }
+}
+```
 
 Configure these values wherever the tool expects MCP server settings.
 
