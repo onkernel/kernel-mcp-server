@@ -3,6 +3,7 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15.3%2B-black.svg)](https://nextjs.org/)
+[![smithery badge](https://smithery.ai/badge/kernel)](https://smithery.ai/server/kernel)
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides AI assistants with secure access to [Kernel platform](https://onkernel.com) tools and browser automation capabilities.
 
@@ -165,6 +166,20 @@ Click [here](goose://extension?cmd=npx&arg=-y&arg=mcp-remote&arg=https%3A%2F%2Fm
   }
 }
 ```
+
+### Smithery
+
+You can connect directly to `https://mcp.onkernel.com/mcp`, or use Smithery as a proxy if you prefer by using its provided URL.
+
+- Use Smithery URL in any MCP client:
+  1. Open [Smithery: Kernel](https://smithery.ai/server/kernel).
+  2. Click "Get connection URL" and copy `https://server.smithery.ai/kernel/mcp`.
+  3. Paste it into your MCP client's "Add server" flow.
+
+- Use Kernel in Smithery's Playground MCP client:
+  1. Open [Smithery Playground](https://smithery.ai/playground).
+  2. Click "Add servers", search for "Kernel", and add it.
+  3. Sign in and authorize Kernel when prompted.
 
 ### Others
 
