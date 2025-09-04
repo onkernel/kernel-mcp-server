@@ -139,17 +139,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (!clerkTokens.id_token) {
         return createErrorResponse(
           "invalid_grant",
-          "Failed to retrieve id_token from Clerk",
+          "Failed to retrieve id_token from Clerk authorization code",
         );
       }
 
       finalJwt = clerkTokens.id_token;
       expiresIn = clerkTokens.expires_in;
     } else if (grantType === "refresh_token") {
-      return createErrorResponse(
-        "unsupported_grant_type",
-        "refresh_token grant type is not yet supported",
-      );
+      if (!clerkTokens.id_token) {
+        return createErrorResponse(
+          "invalid_grant",
+          "Failed to retrieve id_token from Clerk refresh token",
+        );
+      }
+
+      finalJwt = clerkTokens.id_token;
+      expiresIn = clerkTokens.expires_in;
     } else {
       return createErrorResponse(
         "unsupported_grant_type",

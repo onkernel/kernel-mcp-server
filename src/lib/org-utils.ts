@@ -41,17 +41,17 @@ export async function resolveOrgId(
     // Shared clients (CLI): Use org_id from OAuth state parameter
     if (directOrgId) {
       console.debug(
-        "Using org_id from OAuth state parameter for shared client:",
+        "Using org_id from OAuth request body for shared client:",
         directOrgId,
       );
       return { orgId: directOrgId };
     } else {
-      console.warn("Shared client missing org_id in state parameter");
+      console.warn("Shared client missing org_id in request body");
       return {
         orgId: null,
         error: createErrorResponse(
           "invalid_grant",
-          "Missing organization context in OAuth state. Please re-authorize.",
+          "Missing organization context in OAuth request body. Please re-authorize.",
         ),
       };
     }
@@ -68,26 +68,26 @@ export async function resolveOrgId(
       return { orgId };
     } else {
       console.warn(
-        `Ephemeral client missing org context during ${grantType} - Redis entry expired`,
+        `Ephemeral client missing org context during ${grantType} - Redis entry expired for client: ${clientId}`,
       );
       return {
         orgId: null,
         error: createErrorResponse(
           "invalid_grant",
-          "Organization context expired. Please re-authorize to select your organization.",
+          "Organization context expired for client: " + clientId + ". Please re-authorize to select your organization.",
         ),
       };
     }
   } catch (error) {
     console.error(
-      `Failed to retrieve org_id from Redis during ${grantType}:`,
+      `Failed to retrieve org_id from Redis during ${grantType} for client: ${clientId}:`,
       error,
     );
     return {
       orgId: null,
       error: createErrorResponse(
         "server_error",
-        "Failed to retrieve organization context",
+        "Failed to retrieve organization context for client: " + clientId,
       ),
     };
   }
