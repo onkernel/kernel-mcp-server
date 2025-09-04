@@ -169,7 +169,7 @@ Click [here](goose://extension?cmd=npx&arg=-y&arg=mcp-remote&arg=https%3A%2F%2Fm
 
 ### Smithery
 
-You can connect directly to `https://mcp.onkernel.com/mcp`, or use Smithery as a proxy if you prefer by using its provided URL.
+You can connect directly to `https://mcp.onkernel.com/mcp`, or use Smithery as a proxy using its provided URL.
 
 - Use Smithery URL in any MCP client:
   1. Open [Smithery: Kernel](https://smithery.ai/server/kernel).
