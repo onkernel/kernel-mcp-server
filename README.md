@@ -173,7 +173,7 @@ You can connect directly to `https://mcp.onkernel.com/mcp`, or use Smithery as a
 
 - Use Smithery URL in any MCP client:
   1. Open [Smithery: Kernel](https://smithery.ai/server/kernel).
-  2. Click "Get connection URL" and copy `https://server.smithery.ai/kernel/mcp`.
+  2. Copy the URL from "Get connection URL".
   3. Paste it into your MCP client's "Add server" flow.
 
 - Use Kernel in Smithery's Playground MCP client:
