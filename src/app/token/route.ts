@@ -54,9 +54,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const body = await request.formData();
 
-  // print the body
-  console.log('request token body', body);
-
   // Step 2: Validate server configuration
   const clerkDomain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
 
@@ -100,8 +97,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const clerkTokens: ClerkTokenResponse = await clerkTokenResponse.json();
-
-    console.log('clerkTokens', clerkTokens);
 
     // Step 5: Resolve organization context
     const clientId = body.get("client_id") as string;
@@ -191,8 +186,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       access_token: finalJwt,
       expires_in: expiresIn,
     };
-
-    console.log('response token body', mcpTokenResponse);
 
     return NextResponse.json(mcpTokenResponse, {
       headers: {

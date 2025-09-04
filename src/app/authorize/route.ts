@@ -177,8 +177,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     clerkAuthUrl.searchParams.set("state", modifiedState);
   }
 
-  console.log('clerkAuthUrl', clerkAuthUrl.toString());
-
   // Step 8: Redirect to Clerk for actual OAuth authentication
   return NextResponse.redirect(clerkAuthUrl.toString());
 }
