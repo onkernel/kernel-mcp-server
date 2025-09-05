@@ -21,20 +21,20 @@ client.on("error", (err) => {
 client.on("end", () => {
   isConnected = false;
 });
-client.on("connect", () => {
-  isConnected = true;
-});
 client.on("ready", () => {
   isConnected = true;
 });
 
 async function ensureConnected(): Promise<void> {
+  // Prefer the client's readiness state when available
+  // @ts-ignore node-redis exposes isReady at runtime
+  if ((client as any).isReady) return;
   if (client.isOpen && isConnected) return;
   if (connectPromise) return await connectPromise;
   connectPromise = client
     .connect()
     .then(() => {
-      isConnected = true;
+      // 'ready' event will flip isConnected when the client can process commands
     })
     .catch((err) => {
       isConnected = false;
