@@ -217,7 +217,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (grantType === "authorization_code" && clerkTokens.refresh_token) {
         await setOrgIdForRefreshToken({
           refreshToken: clerkTokens.refresh_token,
-          orgId: orgId!,
+          orgId,
           ttlSeconds: REFRESH_TOKEN_ORG_TTL_SECONDS,
         });
         console.debug("[token] stored refresh_token→org_id mapping (auth_code)");
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (clerkTokens.refresh_token) {
           await setOrgIdForRefreshToken({
             refreshToken: clerkTokens.refresh_token,
-            orgId: orgId!,
+            orgId,
             ttlSeconds: REFRESH_TOKEN_ORG_TTL_SECONDS,
           });
           console.debug("[token] updated refresh_token→org_id mapping (refresh)");
@@ -247,7 +247,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Store JWT to org_id mapping with JWT expiration time
       await setOrgIdForJwt({
         jwt: finalJwt,
-        orgId: orgId!,
+        orgId,
         ttlSeconds: expiresIn,
       });
       console.debug("[token] stored jwt→org_id mapping", { ttlSeconds: expiresIn });
