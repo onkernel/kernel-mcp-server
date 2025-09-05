@@ -28,14 +28,20 @@ function createErrorResponse(
  * @param grantType - OAuth grant type ("authorization_code" or "refresh_token")
  * @param clientId - The OAuth client ID
  * @param directOrgId - The org_id from OAuth state parameter (shared clients only)
+ * @param refreshToken - The refresh token from OAuth state parameter (shared clients only)
  * @returns { orgId: string | null, error?: NextResponse } - org_id or error response
  */
-export async function resolveOrgId(
-  grantType: string,
-  clientId: string,
-  directOrgId?: string,
-  refreshToken?: string | null,
-): Promise<{ orgId: string | null; error?: NextResponse }> {
+export async function resolveOrgId({
+  grantType,
+  clientId,
+  directOrgId,
+  refreshToken,
+}: {
+  grantType: string;
+  clientId: string;
+  directOrgId?: string;
+  refreshToken?: string | null;
+}): Promise<{ orgId: string | null; error?: NextResponse }> {
   const isSharedClient = SHARED_CLIENT_IDS.includes(clientId);
   const clientIdMasked = clientId ? clientId.slice(0, 4) + "..." : "";
   console.debug("[org-utils] resolveOrgId", {

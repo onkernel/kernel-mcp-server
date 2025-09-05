@@ -110,12 +110,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           "Missing required parameter: refresh_token",
         );
       }
-      const orgResultPre = await resolveOrgId(
+      const orgResultPre = await resolveOrgId({
         grantType,
         clientId,
         directOrgId,
-        refreshTokenFromBody,
-      );
+        refreshToken: refreshTokenFromBody,
+      });
       if (orgResultPre.error) {
         console.debug("[token] resolveOrgId (pre) returned error for refresh flow");
         return orgResultPre.error;
@@ -159,7 +159,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Step 5: Resolve organization context for authorization_code flows (or confirm for refresh flows)
     let orgId = resolvedOrgId;
     if (!orgId) {
-      const orgResult = await resolveOrgId(grantType, clientId, directOrgId);
+      const orgResult = await resolveOrgId({
+        grantType,
+        clientId,
+        directOrgId,
+      });
       if (orgResult.error) {
         console.debug("[token] resolveOrgId returned error for auth_code flow");
         return orgResult.error;
