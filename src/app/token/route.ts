@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setOrgIdForJwt, setOrgIdForRefreshToken } from "@/lib/redis";
+import { setOrgIdForJwt, setOrgIdForRefreshToken, deleteOrgIdForRefreshToken } from "@/lib/redis";
 import { resolveOrgId } from "@/lib/org-utils";
 import { REFRESH_TOKEN_ORG_TTL_SECONDS } from "@/lib/const";
 
@@ -229,6 +229,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (grantType === "refresh_token") {
         // Update mapping for rotated refresh token if provided
         if (clerkTokens.refresh_token) {
+          // Clean up old mapping before storing the new one
+          if (refreshTokenFromBody) {
+            try {
+              await deleteOrgIdForRefreshToken({ refreshToken: refreshTokenFromBody });
+              console.debug("[token] deleted old refresh_token→org_id mapping (refresh)");
+            } catch (e) {
+              console.warn("[token] failed to delete old refresh_token mapping", { error: e });
+            }
+          }
           await setOrgIdForRefreshToken({
             refreshToken: clerkTokens.refresh_token,
             orgId,

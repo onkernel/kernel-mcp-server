@@ -17,6 +17,4 @@ export const SHARED_CLIENT_IDS = [
 ].filter(Boolean) as string[];
 
 // Sliding TTL for refresh_token→org_id mapping (defaults to 30 days)
-export const REFRESH_TOKEN_ORG_TTL_SECONDS = Number(
-  process.env.REFRESH_TOKEN_ORG_TTL_SECONDS || 60 * 60 * 24 * 30,
-);
+export const REFRESH_TOKEN_ORG_TTL_SECONDS = 60 * 60 * 24 * 30;

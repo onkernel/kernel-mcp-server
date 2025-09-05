@@ -112,3 +112,14 @@ export async function getOrgIdForRefreshTokenSliding({
   }
   return orgId;
 }
+
+export async function deleteOrgIdForRefreshToken({
+  refreshToken,
+}: {
+  refreshToken: string;
+}): Promise<void> {
+  await ensureConnected();
+  const hashed = hashOpaqueToken(refreshToken);
+  const key = `refresh:${hashed}`;
+  await client.del(key);
+}
