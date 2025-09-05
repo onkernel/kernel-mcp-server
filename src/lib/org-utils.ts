@@ -40,7 +40,7 @@ export async function resolveOrgId({
   grantType: string;
   clientId: string;
   directOrgId?: string;
-  refreshToken?: string | null;
+  refreshToken?: string;
 }): Promise<{ orgId: string | null; error?: NextResponse }> {
   const isSharedClient = SHARED_CLIENT_IDS.includes(clientId);
   const clientIdMasked = clientId ? clientId.slice(0, 4) + "..." : "";
@@ -56,7 +56,19 @@ export async function resolveOrgId({
     if (directOrgId) {
       console.debug("[org-utils] shared client: using direct org_id from body");
       return { orgId: directOrgId };
-    } else if (grantType === "refresh_token" && refreshToken) {
+    } else if (grantType === "refresh_token") {
+      if (!refreshToken) {
+        console.warn(
+          "[org-utils] shared client: missing refresh_token in request body",
+        );
+        return {
+          orgId: null,
+          error: createErrorResponse(
+            "invalid_request",
+            "Missing required parameter: refresh_token",
+          ),
+        };
+      }
       try {
         const orgIdFromRefresh = await getOrgIdForRefreshTokenSliding({
           refreshToken,
