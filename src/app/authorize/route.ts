@@ -21,6 +21,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const selectedOrgId = searchParams.get("org_id");
   const originalState = searchParams.get("state");
 
+  console.debug("[authorize] start", {
+    hasClientId: Boolean(clientId),
+    hasSelectedOrgId: Boolean(selectedOrgId),
+    hasState: Boolean(originalState),
+  });
+
   // Step 2: Validate minimum required parameters
   if (!clientId) {
     return NextResponse.json(
@@ -41,6 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Step 3: Redirect to organization selector if no org chosen yet
   if (!selectedOrgId) {
+    console.debug("[authorize] no org selected yet, redirecting to /select-org");
     const selectOrgUrl = new URL("/select-org", request.nextUrl.origin);
 
     // Pass all OAuth parameters to the org selector
@@ -81,9 +88,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         orgId: selectedOrgId,
         ttlSeconds: 60 * 60, // 1 hour
       });
-      console.debug("Stored org_id in Redis for ephemeral client:", clientId);
+      console.debug("[authorize] stored org_id for ephemeral client", {
+        clientIdMasked: clientId?.slice(0, 4) + "...",
+      });
     } catch (error) {
-      console.error("Failed to store org_id in Redis:", error);
+      console.error("[authorize] failed to store org_id in Redis", { error });
       return NextResponse.json(
         {
           error: "server_error",
@@ -100,7 +109,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
   } else {
-    console.debug("Skipping Redis storage for shared client:", clientId);
+    console.debug("[authorize] shared client, skipping Redis store", {
+      clientIdMasked: clientId?.slice(0, 4) + "...",
+    });
   }
 
   // Step 6: Handle state parameter based on client type
@@ -119,12 +130,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           const parsedState = JSON.parse(decodedState);
           if (parsedState.csrf) {
             csrfToken = parsedState.csrf;
-            console.debug("Extracted CSRF token from CLI state parameter");
+            console.debug("[authorize] extracted CSRF from CLI state param");
           }
         } catch (decodeError) {
           // If decoding fails, treat originalState as plain CSRF token
           csrfToken = originalState;
-          console.debug("Using original state as plain CSRF token");
+          console.debug("[authorize] using original state as plain CSRF token");
         }
       }
 
@@ -133,12 +144,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         org_id: selectedOrgId,
       };
       modifiedState = Buffer.from(JSON.stringify(stateData)).toString("base64");
-      console.debug(
-        "Encoded org_id into state parameter for shared client:",
-        clientId,
-      );
+      console.debug("[authorize] encoded org_id into state for shared client", {
+        clientIdMasked: clientId?.slice(0, 4) + "...",
+      });
     } catch (error) {
-      console.error("Failed to encode org_id into state:", error);
+      console.error("[authorize] failed to encode org_id into state", { error });
       return NextResponse.json(
         {
           error: "server_error",
@@ -156,10 +166,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   } else if (selectedOrgId) {
     // For ephemeral clients, don't modify state - rely on Redis storage
-    console.debug(
-      "Using Redis storage for ephemeral client, preserving original state:",
-      clientId,
-    );
+    console.debug("[authorize] ephemeral client: preserving original state");
   }
 
   // Step 7: Build Clerk authorization URL with OAuth parameters
@@ -178,5 +185,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Step 8: Redirect to Clerk for actual OAuth authentication
+  console.debug("[authorize] redirecting to clerk /oauth/authorize", {
+    hasModifiedState: Boolean(modifiedState),
+  });
   return NextResponse.redirect(clerkAuthUrl.toString());
 }
