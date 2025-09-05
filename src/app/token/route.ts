@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setOrgIdForJwt } from "../../lib/redis";
-import { resolveOrgId } from "../../lib/org-utils";
+import { setOrgIdForJwt, setOrgIdForRefreshToken, deleteOrgIdForRefreshToken } from "@/lib/redis";
+import { resolveOrgId } from "@/lib/org-utils";
+import { REFRESH_TOKEN_ORG_TTL_SECONDS } from "@/lib/const";
 
 export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Step 1: Validate request format
   const contentType = request.headers.get("content-type");
   if (!contentType?.includes("application/x-www-form-urlencoded")) {
+    console.debug("[token] invalid content-type", { contentType });
     return createErrorResponse(
       "invalid_request",
       "Content-Type must be application/x-www-form-urlencoded",
@@ -74,8 +76,62 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const grantType = body.get("grant_type") as string;
+    console.debug("[token] start", { grantType });
 
-    // Step 4: Exchange authorization code with Clerk
+    // Validate client_id (required for both flows)
+    const clientId = body.get("client_id") as string | null;
+    if (!clientId) {
+      console.debug("[token] missing client_id");
+      return createErrorResponse(
+        "invalid_request",
+        "Missing required parameter: client_id",
+      );
+    }
+
+    // Extract direct org_id if provided (shared clients)
+    let directOrgId: string | undefined;
+    const directOrgIdParam = body.get("org_id");
+    if (directOrgIdParam) {
+      const orgIdParam = directOrgIdParam.toString();
+      directOrgId = orgIdParam;
+      const maskedOrgId = orgIdParam.slice(0, 4) + "..." + orgIdParam.slice(-4);
+      console.debug("[token] using org_id from request body", { maskedOrgId });
+    }
+
+    // For refresh_token flow, resolve org before calling Clerk
+    let resolvedOrgId: string | null = null;
+    let refreshTokenFromBody: string | null = null;
+    if (grantType === "refresh_token") {
+      refreshTokenFromBody = body.get("refresh_token") as string | null;
+      if (!refreshTokenFromBody) {
+        console.debug("[token] missing refresh_token in refresh flow");
+        return createErrorResponse(
+          "invalid_request",
+          "Missing required parameter: refresh_token",
+        );
+      }
+      const orgResultPre = await resolveOrgId({
+        grantType,
+        clientId,
+        directOrgId,
+        refreshToken: refreshTokenFromBody,
+      });
+      if (orgResultPre.error) {
+        console.debug("[token] resolveOrgId (pre) returned error for refresh flow");
+        return orgResultPre.error;
+      }
+      resolvedOrgId = orgResultPre.orgId;
+      if (!resolvedOrgId) {
+        console.debug("[token] no org_id resolved for refresh_token flow");
+        return createErrorResponse(
+          "invalid_grant",
+          "Organization context not found for refresh token. Please re-authorize.",
+        );
+      }
+      console.debug("[token] resolved org via refresh_token mapping");
+    }
+
+    // Step 4: Exchange with Clerk
     const clerkTokenResponse = await fetch(
       `https://${clerkDomain}/oauth/token`,
       {
@@ -89,41 +145,37 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!clerkTokenResponse.ok) {
       const errorData = await clerkTokenResponse.text();
-      console.error("Clerk token exchange failed:", errorData);
+      console.error("[token] clerk token exchange failed");
       return createErrorResponse(
         "invalid_grant",
-        "Failed to exchange authorization code",
+        grantType === "refresh_token"
+          ? "Failed to refresh token"
+          : "Failed to exchange authorization code",
       );
     }
 
     const clerkTokens: ClerkTokenResponse = await clerkTokenResponse.json();
 
-    // Step 5: Resolve organization context
-    const clientId = body.get("client_id") as string;
-
-    // For shared clients, extract org_id from direct parameter
-    // For ephemeral clients, rely on Redis storage
-    let directOrgId: string | undefined;
-
-    // Extract org_id from request body (shared clients only)
-    const directOrgIdParam = body.get("org_id");
-    if (directOrgIdParam) {
-      // mask the middle of the org_id
-      const orgId = directOrgIdParam.toString();
-      directOrgId = orgId;
-      const maskedOrgId = orgId.slice(0, 4) + "..." + orgId.slice(-4);
-      console.debug("Using org_id from request body:", maskedOrgId);
+    // Step 5: Resolve organization context for authorization_code flows (or confirm for refresh flows)
+    let orgId = resolvedOrgId;
+    if (!orgId) {
+      const orgResult = await resolveOrgId({
+        grantType,
+        clientId,
+        directOrgId,
+      });
+      if (orgResult.error) {
+        console.debug("[token] resolveOrgId returned error for auth_code flow");
+        return orgResult.error;
+      }
+      orgId = orgResult.orgId;
     }
-
-    const orgResult = await resolveOrgId(grantType, clientId, directOrgId);
-    if (orgResult.error) {
-      return orgResult.error;
-    }
-    const orgId = orgResult.orgId;
 
     // Step 6: Validate organization context
     if (!orgId || orgId === "") {
-      console.warn("No org_id resolved for client:", clientId);
+      console.warn("[token] no org_id resolved for client", {
+        clientIdMasked: clientId.slice(0, 4) + "...",
+      });
       return createErrorResponse(
         "invalid_grant",
         "Unable to resolve organization context. Please re-authorize.",
@@ -137,6 +189,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (grantType === "authorization_code") {
       // For authorization_code: Use id_token directly (already has proper structure)
       if (!clerkTokens.id_token) {
+        console.debug("[token] missing id_token in auth_code response");
         return createErrorResponse(
           "invalid_grant",
           "Failed to retrieve id_token from Clerk authorization code",
@@ -147,6 +200,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       expiresIn = clerkTokens.expires_in;
     } else if (grantType === "refresh_token") {
       if (!clerkTokens.id_token) {
+        console.debug("[token] missing id_token in refresh response");
         return createErrorResponse(
           "invalid_grant",
           "Failed to retrieve id_token from Clerk refresh token",
@@ -162,7 +216,46 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Step 8: Store JWT to org_id mapping for verifyjwt.go
+    // Step 8: Store refresh_token → org_id mapping (where applicable)
+    try {
+      if (grantType === "authorization_code" && clerkTokens.refresh_token) {
+        await setOrgIdForRefreshToken({
+          refreshToken: clerkTokens.refresh_token,
+          orgId,
+          ttlSeconds: REFRESH_TOKEN_ORG_TTL_SECONDS,
+        });
+        console.debug("[token] stored refresh_token→org_id mapping (auth_code)");
+      }
+      if (grantType === "refresh_token") {
+        // Update mapping for rotated refresh token if provided
+        if (clerkTokens.refresh_token) {
+          // Clean up old mapping before storing the new one
+          if (refreshTokenFromBody) {
+            try {
+              await deleteOrgIdForRefreshToken({ refreshToken: refreshTokenFromBody });
+              console.debug("[token] deleted old refresh_token→org_id mapping (refresh)");
+            } catch (e) {
+              console.warn("[token] failed to delete old refresh_token mapping", { error: e });
+            }
+          }
+          await setOrgIdForRefreshToken({
+            refreshToken: clerkTokens.refresh_token,
+            orgId,
+            ttlSeconds: REFRESH_TOKEN_ORG_TTL_SECONDS,
+          });
+          console.debug("[token] updated refresh_token→org_id mapping (refresh)");
+        }
+      }
+    } catch (error) {
+      console.error("[token] failed to store refresh_token→org_id mapping", { error });
+      return createErrorResponse(
+        "server_error",
+        "Failed to store refresh token context",
+        500,
+      );
+    }
+
+    // Step 9: Store JWT to org_id mapping for verifyjwt.go
     try {
       // Store JWT to org_id mapping with JWT expiration time
       await setOrgIdForJwt({
@@ -170,9 +263,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         orgId,
         ttlSeconds: expiresIn,
       });
-      console.debug("Stored JWT to org_id mapping in Redis");
+      console.debug("[token] stored jwt→org_id mapping", { ttlSeconds: expiresIn });
     } catch (error) {
-      console.error("Failed to store JWT to org_id mapping:", error);
+      console.error("[token] failed to store jwt→org_id mapping", { error });
       return createErrorResponse(
         "server_error",
         "Failed to store authentication context",
@@ -180,13 +273,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Step 9: Build final token response
+    // Step 10: Build final token response
     const mcpTokenResponse = {
       ...clerkTokens,
       access_token: finalJwt,
       expires_in: expiresIn,
     };
 
+    console.debug("[token] success", { grantType });
     return NextResponse.json(mcpTokenResponse, {
       headers: {
         "Access-Control-Allow-Origin": "*",
@@ -195,7 +289,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    console.error("Token exchange error:", error);
+    console.error("[token] unhandled error", { error });
 
     // If it's a Clerk error, log the detailed error information
     if (error && typeof error === "object" && "clerkError" in error) {
