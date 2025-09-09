@@ -105,4 +105,4 @@ Makefile
 **/*.rdb
 
 # private key
-key.pem
+mcp-key.pem
