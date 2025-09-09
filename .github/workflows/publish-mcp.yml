@@ -1,0 +1,42 @@
+name: Publish MCP server.json
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write   # future-friendly if/when registry supports OIDC from Actions
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install MCP Registry Publisher
+        run: go install github.com/modelcontextprotocol/registry/tools/publisher@latest
+
+      - name: Publish to MCP Registry
+        env:
+          MCP_GITHUB_TOKEN: ${{ secrets.MCP_GITHUB_TOKEN }}
+          MCP_REGISTRY_URL: https://registry.modelcontextprotocol.io
+        run: |
+          # Fail early if the file is missing
+          test -f .mcp/server.json
+
+          # Publish. The CLI defaults may evolve; these flags keep it explicit.
+          # If the CLI prefers envs, it will read MCP_GITHUB_TOKEN and MCP_REGISTRY_URL.
+          "$(go env GOPATH)"/bin/publisher \
+            publish \
+            --mcp-file .mcp/server.json \
+            --registry-url "$MCP_REGISTRY_URL" \
+            --github-token "$MCP_GITHUB_TOKEN"
