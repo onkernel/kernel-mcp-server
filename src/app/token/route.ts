@@ -131,26 +131,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       console.debug("[token] resolved org via refresh_token mapping");
     }
 
-    // Step 4: Exchange with Clerk
-    const clerkTokenResponse = await fetch(
-      `https://${clerkDomain}/oauth/token`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
+    let clerkTokenResponse: Response | null = null;
+    try {
+      // Step 4: Exchange with Clerk
+      clerkTokenResponse = await fetch(
+        `https://${clerkDomain}/oauth/token`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: params,
         },
-        body: params,
-      },
-    );
+      );
 
-    if (!clerkTokenResponse.ok) {
-      const errorData = await clerkTokenResponse.text();
-      console.error("[token] clerk token exchange failed");
+      if (!clerkTokenResponse.ok) {
+        const errorData = await clerkTokenResponse.text();
+        console.error("[token] clerk token exchange failed", { errorData });
+        return createErrorResponse(
+          "invalid_grant",
+          grantType === "refresh_token"
+            ? "Failed to refresh token"
+            : "Failed to exchange authorization code",
+        );
+      }
+    } catch (error) {
+      console.error("[token] clerk token exchange failed", { error, clerkTokenResponse });
       return createErrorResponse(
         "invalid_grant",
-        grantType === "refresh_token"
-          ? "Failed to refresh token"
-          : "Failed to exchange authorization code",
+        "Failed to exchange authorization code",
       );
     }
 
@@ -187,6 +196,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let expiresIn: number;
 
     if (grantType === "authorization_code") {
+      console.debug("[token]", clerkTokens);
       // For authorization_code: Use id_token directly (already has proper structure)
       if (!clerkTokens.id_token) {
         console.debug("[token] missing id_token in auth_code response");
