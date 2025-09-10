@@ -17,13 +17,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.22"
-
       - name: Install MCP Registry Publisher
-        run: go install github.com/modelcontextprotocol/registry/tools/publisher@latest
+        run: |
+          set -euo pipefail
+          ARCH="$(uname -m)"
+          if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; elif [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; fi
+          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          URL="https://github.com/modelcontextprotocol/registry/releases/download/v1.0.0/mcp-publisher_1.0.0_${OS}_${ARCH}.tar.gz"
+          curl -L "$URL" | tar xz mcp-publisher
+          mkdir -p "$HOME/.local/bin"
+          install -m 0755 mcp-publisher "$HOME/.local/bin/mcp-publisher"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Publish to MCP Registry
         env:
@@ -34,7 +38,6 @@ jobs:
 
           # Publish. The CLI defaults may evolve; these flags keep it explicit.
           # If the CLI prefers envs, it will read MCP_REGISTRY_URL.
-          "$(go env GOPATH)"/bin/publisher \
-            publish \
+          mcp-publisher publish \
             --mcp-file server.json \
             --registry-url "$MCP_REGISTRY_URL"
