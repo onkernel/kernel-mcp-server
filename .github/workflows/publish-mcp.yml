@@ -12,32 +12,41 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-
+    permissions:
+      id-token: write  # Required for OIDC authentication
+      contents: read
+    
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Install MCP Registry Publisher
+      
+      - name: Setup Node.js  # Adjust for your language
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test
+      
+      - name: Build package  
+        run: npm run build
+      
+      - name: Install MCP Publisher
         run: |
-          set -euo pipefail
-          ARCH="$(uname -m)"
-          if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; elif [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; fi
-          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-          URL="https://github.com/modelcontextprotocol/registry/releases/download/v1.0.0/mcp-publisher_1.0.0_${OS}_${ARCH}.tar.gz"
-          curl -L "$URL" | tar xz mcp-publisher
-          mkdir -p "$HOME/.local/bin"
-          install -m 0755 mcp-publisher "$HOME/.local/bin/mcp-publisher"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
+          # Build publisher from source (requires Go)
+          git clone https://github.com/modelcontextprotocol/registry publisher-repo
+          cd publisher-repo
+          make publisher
+          cp cmd/publisher/bin/mcp-publisher ../mcp-publisher
+          cd ..
+          chmod +x mcp-publisher
+      
+      - name: Login to MCP Registry
+        run: ./mcp-publisher login github-oidc
+      
       - name: Publish to MCP Registry
-        env:
-          MCP_REGISTRY_URL: https://registry.modelcontextprotocol.io
-        run: |
-          # Fail early if the file is missing
-          test -f server.json
-
-          # Publish. The CLI defaults may evolve; these flags keep it explicit.
-          # If the CLI prefers envs, it will read MCP_REGISTRY_URL.
-          mcp-publisher publish \
-            --mcp-file server.json \
-            --registry-url "$MCP_REGISTRY_URL"
+        run: ./mcp-publisher publish
