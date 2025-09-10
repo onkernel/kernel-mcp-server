@@ -8,6 +8,19 @@ const nextConfig: NextConfig = {
         destination: "https://docs.onkernel.com/reference/mcp-server",
         permanent: true,
       },
+      
+    ];
+  },
+  rewrites: async () => {
+    return [
+      {
+        source: "/oauth-protected-resourece/mcp",
+        destination: "/.well-known/oauth-protected-resource/mcp",
+      },
+      {
+        source: "/.well-known/oauth-authorization-server",
+        destination: "/.well-known/oauth-protected-resource/mcp",
+      },
     ];
   },
 };
