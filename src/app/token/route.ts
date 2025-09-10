@@ -196,7 +196,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let expiresIn: number;
 
     if (grantType === "authorization_code") {
-      console.debug("[token]", clerkTokens);
       // For authorization_code: Use id_token directly (already has proper structure)
       if (!clerkTokens.id_token) {
         console.debug("[token] missing id_token in auth_code response");
