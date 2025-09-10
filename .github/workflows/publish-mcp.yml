@@ -1,8 +1,10 @@
 name: Publish MCP server.json
 
+# Paused before we have a remote mcp server and already published it
+
 on:
-  push:
-    branches: [ "main" ]
+  # push:
+  #   branches: [ "main" ]
   workflow_dispatch: {}
 
 permissions:
