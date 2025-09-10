@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
         destination: "https://docs.onkernel.com/reference/mcp-server",
         permanent: true,
       },
-
     ];
   },
 };
