@@ -38,8 +38,13 @@ jobs:
       
       - name: Login to MCP Registry
         run: |
-          echo "${{ secrets.MCP_PRIVATE_KEY }}" > key.pem
-          ./mcp-publisher login dns -domain onkernel.com --private-key $(openssl pkey -in key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')
+          KEY_B64='${{ secrets.MCP_PRIVATE_KEY }}'
+          ./mcp-publisher login dns --domain onkernel.com --private-key "$(
+            printf '-----BEGIN PRIVATE KEY-----\n%s\n-----END PRIVATE KEY-----\n' "$KEY_B64" \
+            | openssl pkey -in /dev/stdin -noout -text 2>/dev/null \
+            | awk '/priv:/{p=1;next}/pub:/{p=0}p' \
+            | tr -d ' :\n'
+          )"
 
       - name: Publish to MCP Registry
         run: ./mcp-publisher publish
