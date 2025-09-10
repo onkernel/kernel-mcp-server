@@ -1,0 +1,57 @@
+name: Publish MCP server.json
+
+# Paused before we have a remote mcp server and already published it
+
+on:
+  # push:
+  #   branches: [ "main" ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for OIDC authentication
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js  # Adjust for your language
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Install MCP Publisher
+        run: |
+          # Build publisher from source (requires Go)
+          git clone https://github.com/modelcontextprotocol/registry publisher-repo
+          cd publisher-repo
+          make publisher
+          cp bin/mcp-publisher ../mcp-publisher
+          cd ..
+          chmod +x mcp-publisher
+      
+      - name: Login to MCP Registry
+        run: |
+          KEY_B64='${{ secrets.MCP_PRIVATE_KEY }}'
+          SEED_HEX="$(
+            {
+              printf '%s\n' '-----BEGIN PRIVATE KEY-----'
+              printf '%s\n' "$(printf '%s' "$KEY_B64" | tr -d ' \r\n')"
+              printf '%s\n' '-----END PRIVATE KEY-----'
+            } \
+            | openssl pkey -in /dev/stdin -noout -text 2>/dev/null \
+            | awk '/priv:/{p=1;next}/pub:/{p=0}p' \
+            | tr -d ' :\n'
+          )"
+          ./mcp-publisher login dns --domain onkernel.com --private-key "$SEED_HEX"
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish
