@@ -38,7 +38,8 @@ jobs:
       
       - name: Login to MCP Registry
         run: |
-          ./mcp-publisher login dns -domain onkernel.com -private-key "${{ secrets.MCP_PRIVATE_KEY }}"
-      
+          echo "${{ secrets.MCP_PRIVATE_KEY }}" > key.pem
+          mcp-publisher login dns -domain onkernel.com -private-key-file key.pem
+
       - name: Publish to MCP Registry
         run: ./mcp-publisher publish
