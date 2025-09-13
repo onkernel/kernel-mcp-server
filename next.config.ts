@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/",
-        destination: "https://docs.onkernel.com/reference/mcp-server",
+        destination: "https://onkernel.com/docs/reference/mcp-server",
         permanent: true,
       },
     ];
