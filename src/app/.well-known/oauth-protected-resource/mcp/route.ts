@@ -24,7 +24,6 @@ const handler = async (request: NextRequest) => {
     authorization_endpoint: `${baseUrl}/authorize`,
     token_endpoint: `${baseUrl}/token`,
     registration_endpoint: `${clerkBaseUrl}/oauth/register`,
-    scopes_supported: ["openid"],
   };
 
   return Response.json(modifiedMetadata, {
