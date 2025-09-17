@@ -30,8 +30,8 @@
   },
   "dependencies": {
     "@clerk/mcp-tools": "^0.1.1",
-    "@clerk/nextjs": "^6.24.0",
-    "@clerk/themes": "^2.2.56",
+    "@clerk/nextjs": "^6.32.0",
+    "@clerk/themes": "^2.4.19",
     "@mcp-ui/server": "^5.10.0",
     "@onkernel/sdk": "^0.10.0",
     "@types/jsonwebtoken": "^9.0.10",
