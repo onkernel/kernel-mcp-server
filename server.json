@@ -5,7 +5,7 @@
   "description": "Access Kernel's cloud-based browsers and app actions via MCP (remote HTTP + OAuth).",
   "status": "active",
   "homepage_url": "https://onkernel.com",
-  "documentation_url": "https://docs.onkernel.com/reference/mcp-server",
+  "documentation_url": "https://onkernel.com/docs/reference/mcp-server",
   "repository": {
     "url": "https://github.com/onkernel/kernel-mcp-server",
     "source": "github"
