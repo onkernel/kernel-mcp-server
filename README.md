@@ -202,20 +202,35 @@ Configure these values wherever the tool expects MCP server settings.
 ## Tools
 
 ### Browser Automation
-- `create_browser` - Launch a new browser session
+- `create_browser` - Launch a new browser session with options (headless, stealth, persistence, timeout, profile)
 - `get_browser` - Get browser session information
 - `list_browsers` - List active browser sessions
 - `delete_browser` - Terminate a browser session
 
+### Profile Management
+- `setup_profile` - Create or update browser profiles with guided setup process
+- `list_profiles` - List all available browser profiles
+- `delete_profile` - Delete browser profile permanently
+
 ### App Management
-- `list_apps` - List apps in your Kernel organization
+- `list_apps` - List apps in your Kernel organization with optional filtering
 - `invoke_action` - Execute actions in Kernel apps
 - `get_deployment` - Get deployment status and logs
-- `list_deployments` - List all deployments
+- `list_deployments` - List all deployments with optional filtering
 - `get_invocation` - Get action invocation details
 
 ### Documentation & Search
 - `search_docs` - Search Kernel platform documentation and guides
+
+## Resources
+
+- `browsers://` - Access browser sessions (list all or get specific session)
+- `profiles://` - Access browser profiles (list all or get specific profile)
+- `apps://` - Access deployed apps (list all or get specific app)
+
+## Prompts
+
+- `kernel-concepts` - Get explanations of Kernel's core concepts (browsers, apps, overview)
 
 ## Troubleshooting
 
@@ -240,6 +255,18 @@ Assistant: I'll execute your web-scraper action with reddit.com as the target.
 Human: Create a stealth browser session that I can reuse for testing login flows
 Assistant: I'll create a persistent, stealth-enabled browser that maintains state between uses.
 [Uses create_browser tool with persistence and stealth options]
+```
+
+### Set up browser profiles for authentication
+
+```
+Human: Set up a profile for my work accounts
+Assistant: I'll create a profile and guide you through the setup process.
+[Uses setup_profile tool]
+
+Human: I'm done setting up my accounts
+Assistant: Perfect! I'll close the browser session and save your profile.
+[Uses delete_browser tool to save profile]
 ```
 
 ## 🤝 Contributing
