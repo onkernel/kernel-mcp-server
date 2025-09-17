@@ -6,18 +6,6 @@ import { verifyToken } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { Kernel } from "@onkernel/sdk";
 import { z } from "zod";
-import { promises as fs, createReadStream } from "fs";
-import path from "path";
-import os from "os";
-import crypto from "crypto";
-import JSZip from "jszip";
-import {
-  resolveDependencies,
-  generateProjectFiles,
-  mergeDependencies,
-  detectEntrypoint,
-} from "@/lib/dependency-resolver";
-import { AppAction } from "@onkernel/sdk/resources";
 
 // Mintlify Search API types
 interface MintlifyChunkMetadata {
@@ -122,6 +110,234 @@ function createAuthErrorResponse(
 
 // Create MCP handler with tools
 const handler = createMcpHandler((server) => {
+  // Register MCP resources
+  server.resource(
+    "profiles",
+    "profiles://",
+    async (uri, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const client = createKernelClient(extra.authInfo.token);
+      const uriString = uri.toString();
+      
+      if (uriString === "profiles://") {
+        // List all profiles
+        const profiles = await client.profiles.list();
+        return {
+          contents: [
+            {
+              uri: "profiles://",
+              mimeType: "application/json",
+              text: JSON.stringify(profiles, null, 2),
+            },
+          ],
+        };
+      } else if (uriString.startsWith("profiles://")) {
+        // Get specific profile by name
+        const profileName = uriString.replace("profiles://", "");
+        const profile = await client.profiles.retrieve(profileName);
+        
+        if (!profile) {
+          throw new Error(`Profile "${profileName}" not found`);
+        }
+
+        return {
+          contents: [
+            {
+              uri: uriString,
+              mimeType: "application/json",
+              text: JSON.stringify(profile, null, 2),
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Invalid profile URI: ${uriString}`);
+    }
+  );
+
+  server.resource(
+    "browsers",
+    "browsers://",
+    async (uri, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const client = createKernelClient(extra.authInfo.token);
+      const uriString = uri.toString();
+      
+      if (uriString === "browsers://") {
+        // List all browsers
+        const browsers = await client.browsers.list();
+        return {
+          contents: [
+            {
+              uri: "browsers://",
+              mimeType: "application/json",
+              text: JSON.stringify(browsers, null, 2),
+            },
+          ],
+        };
+      } else if (uriString.startsWith("browsers://")) {
+        // Get specific browser by session ID
+        const sessionId = uriString.replace("browsers://", "");
+        const browser = await client.browsers.retrieve(sessionId);
+        
+        if (!browser) {
+          throw new Error(`Browser session "${sessionId}" not found`);
+        }
+
+        return {
+          contents: [
+            {
+              uri: uriString,
+              mimeType: "application/json",
+              text: JSON.stringify(browser, null, 2),
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Invalid browser URI: ${uriString}`);
+    }
+  );
+
+  server.resource(
+    "apps",
+    "apps://",
+    async (uri, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const client = createKernelClient(extra.authInfo.token);
+      const uriString = uri.toString();
+      
+      if (uriString === "apps://") {
+        // List all apps
+        const apps = await client.apps.list();
+        return {
+          contents: [
+            {
+              uri: "apps://",
+              mimeType: "application/json",
+              text: JSON.stringify(apps, null, 2),
+            },
+          ],
+        };
+      } else if (uriString.startsWith("apps://")) {
+        // Get specific app by name
+        const appName = uriString.replace("apps://", "");
+        const apps = await client.apps.list();
+        const app = apps?.find(a => a.app_name === appName);
+        
+        if (!app) {
+          throw new Error(`App "${appName}" not found`);
+        }
+
+        return {
+          contents: [
+            {
+              uri: uriString,
+              mimeType: "application/json",
+              text: JSON.stringify(app, null, 2),
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Invalid app URI: ${uriString}`);
+    }
+  );
+
+  // MCP Prompt explaining Kernel concepts
+  server.prompt(
+    "kernel-concepts",
+    "Explain Kernel's core concepts and capabilities for AI agents working with web automation",
+    {
+      concept: z
+        .enum(["browsers", "apps", "overview"])
+        .describe("The specific concept to explain: browsers (sessions), apps (code execution), profiles (browser auth), or overview (all concepts)"),
+    },
+    async ({ concept }) => {
+      const explanations = {
+        browsers: `## 🌐 Browsers (Sessions)
+
+**What they are:** Kernel provides serverless browsers-as-a-service that run in isolated cloud environments. Each browser is a complete, sandboxed instance that can automate any website.
+
+**Key capabilities:**
+- **Instant launch** - Browsers start in seconds, not minutes
+- **Full isolation** - Each browser runs in its own virtual machine
+- **Parallel scaling** - Run hundreds or thousands of concurrent browsers
+- **Live view** - Human-in-the-loop workflows with real-time browser viewing
+- **Replays** - Record and review past browser sessions as videos
+- **CDP integration** - Connect with Playwright, Puppeteer, or any CDP-compatible tool
+- **Profile persistence** - Save and reuse authentication cookies and login data across sessions
+
+**Use cases:** Web scraping, form automation, testing, data extraction, user journey simulation, and any task requiring browser interaction.
+
+**Persistence options:**
+- **Session persistence** - Reuse browser state across hours/days
+- **Profile persistence** - Save and reuse authentication cookies and login data`,
+
+        apps: `## 🚀 Apps (Code Execution Platform)
+
+**What they are:** Kernel's app platform lets you deploy, host, and invoke browser automation code in production without managing infrastructure.
+
+**Key capabilities:**
+- **Serverless execution** - Deploy automation code that runs on-demand
+- **Auto-scaling** - Automatically handles traffic spikes and resource allocation
+- **Seamless integration** - Apps can create and manage browsers programmatically
+- **Production ready** - Built-in monitoring, logging, and error handling
+- **Multiple languages** - Support for Python, TypeScript, and more
+
+**Development workflow:**
+1. Write your automation code
+2. Deploy to Kernel's platform
+3. Invoke via API or MCP tools
+4. Monitor execution and results
+
+**Use cases:** Scheduled web scraping, API endpoints for browser automation, complex multi-step workflows, and production automation services.`,
+
+        overview: `## 🎯 Kernel Platform Overview
+
+**What Kernel is:** A developer platform that provides browsers-as-a-service for AI agents to access websites. Our API and MCP server allows web agents to instantly launch browsers in the cloud and automate anything on the internet.
+
+**Core Concepts:**
+
+### 🌐 Browsers (Sessions)
+Serverless browsers that run in isolated cloud environments. Each browser can automate any website with full CDP compatibility, live viewing, replay capabilities, and persistent profiles for authentication.
+
+### 🚀 Apps (Code Execution)
+Production-ready platform for deploying and hosting browser automation code. Handles auto-scaling, monitoring, and execution without infrastructure management.
+
+**Why developers choose Kernel:**
+- **Performance** - Crazy fast browser launch times
+- **Developer experience** - Simple APIs and comprehensive tooling
+- **Production ready** - Handles bot detection, authentication, scaling, and observability
+- **Cost effective** - Only pay for active browser time
+- **Reliable** - Built for enterprise-scale automation
+
+**Perfect for:** AI agents, web automation, testing, scraping, form filling, and any task requiring browser interaction.`
+      };
+
+      return {
+        messages: [
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: explanations[concept],
+            },
+          },
+        ],
+      };
+    }
+  );
+
   // Search Docs Tool
   server.tool(
     "search_docs",
@@ -508,13 +724,13 @@ const handler = createMcpHandler((server) => {
     "get_browser",
     "Retrieve detailed information about a specific browser session including its current status, configuration, and metadata. Use this to check if a browser is still active, get its access URLs, or understand its current state before performing operations.",
     {
-      id: z
+      session_id: z
         .string()
         .describe(
           "Unique identifier of the browser session to retrieve information about. You can get this from list_browsers or create_browser responses.",
         ),
     },
-    async ({ id }, extra) => {
+    async ({ session_id }, extra) => {
       if (!extra.authInfo) {
         throw new Error("Authentication required");
       }
@@ -522,7 +738,7 @@ const handler = createMcpHandler((server) => {
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        const result = await client.browsers.retrieve(id);
+        const result = await client.browsers.retrieve(session_id);
 
         return {
           content: [
@@ -558,10 +774,10 @@ const handler = createMcpHandler((server) => {
           "If true, launches the browser without GUI/VNC access (faster, less resource intensive). Use false for interactive browsing or debugging.",
         )
         .optional(),
-      invocation_id: z
-        .string()
+      stealth: z
+        .boolean()
         .describe(
-          "Link this browser session to a specific action invocation for tracking and resource management.",
+          "If true, configures browser to avoid detection by anti-bot systems. Recommended for web scraping and automation.",
         )
         .optional(),
       persistence_id: z
@@ -576,15 +792,15 @@ const handler = createMcpHandler((server) => {
           "The number of seconds of inactivity before the browser session is terminated. Only applicable to non-persistent browsers. Activity includes CDP connections and live view connections. Defaults to 60 seconds.",
         )
         .optional(),
-      stealth: z
-        .boolean()
+      profile_name: z
+        .string()
         .describe(
-          "If true, configures browser to avoid detection by anti-bot systems. Recommended for web scraping and automation.",
+          "Name of an existing profile to load into this browser session. Use list_profiles to see available profiles. The profile will load all saved cookies, logins, and session data.",
         )
         .optional(),
     },
     async (
-      { headless, invocation_id, persistence_id, stealth, timeout_seconds },
+      { headless, persistence_id, stealth, timeout_seconds, profile_name },
       extra,
     ) => {
       if (!extra.authInfo) {
@@ -596,10 +812,10 @@ const handler = createMcpHandler((server) => {
       try {
         const kernelBrowser = await client.browsers.create({
           ...(headless && { headless: headless }),
-          ...(invocation_id && { invocation_id: invocation_id }),
           ...(persistence_id && { persistence: { id: persistence_id } }),
           ...(stealth && { stealth: stealth }),
           ...(timeout_seconds && { timeout_seconds: timeout_seconds }),
+          ...(profile_name && { profile: { name: profile_name, save_changes: false } }),
         });
 
         return {
@@ -625,18 +841,12 @@ const handler = createMcpHandler((server) => {
     },
   );
 
-  // Delete Browser Tool
+  // List Browsers Tool
   server.tool(
-    "delete_browser",
-    "Permanently terminate and clean up a browser session. This will stop the browser instance, free up resources, and remove any associated data. Use this when you no longer need a browser session or want to clean up after completing automation tasks.",
-    {
-      persistence_id: z
-        .string()
-        .describe(
-          "Unique string identifier for browser session persistence. This is the same ID used when creating browsers to maintain state across sessions. You can find this value in the persistence.id field from list_browsers responses.",
-        ),
-    },
-    async ({ persistence_id }, extra) => {
+    "list_browsers",
+    "Retrieve a list of all currently active browser sessions in the Kernel platform. This shows you which browsers are running, their session IDs, creation times, and basic configuration. Use this to discover existing browser sessions before creating new ones or to audit current browser usage.",
+    {},
+    async (_args, extra) => {
       if (!extra.authInfo) {
         throw new Error("Authentication required");
       }
@@ -644,9 +854,55 @@ const handler = createMcpHandler((server) => {
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        await client.browsers.delete({
-          persistent_id: persistence_id,
+        const result = await client.browsers.list();
+
+        const resultWithoutCdpWsUrl = result.map((browser) => {
+          return { ...browser, cdp_ws_url: undefined };
         });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: resultWithoutCdpWsUrl
+                ? JSON.stringify(resultWithoutCdpWsUrl, null, 2)
+                : "No browsers found",
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error fetching browsers: ${error}`,
+            },
+          ],
+        };
+      }
+    },
+  );
+
+  // Delete Browser Tool
+  server.tool(
+    "delete_browser",
+    "Permanently terminate and clean up a browser session. This will stop the browser instance, free up resources, and remove any associated data. Use this when you no longer need a browser session or want to clean up after completing automation tasks.",
+    {
+      session_id: z
+        .string()
+        .describe(
+          "Unique string identifier for browser session. This is the same ID used when creating browsers to maintain state across sessions. You can find this value in the session_id field from list_browsers responses.",
+        ),
+    },
+    async ({ session_id }, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const client = createKernelClient(extra.authInfo.token);
+
+      try {
+        await client.browsers.deleteByID(session_id);
 
         return {
           content: [
@@ -674,13 +930,13 @@ const handler = createMcpHandler((server) => {
     "get_deployment",
     "Retrieve comprehensive information about a specific deployment including its current status, build logs, configuration, and health metrics. Use this to monitor deployment progress, troubleshoot deployment issues, or verify that an app was deployed successfully.",
     {
-      id: z
+      deployment_id: z
         .string()
         .describe(
           "Unique identifier of the deployment to retrieve information about. You can get this from list_deployments responses.",
         ),
     },
-    async ({ id }, extra) => {
+    async ({ deployment_id }, extra) => {
       if (!extra.authInfo) {
         throw new Error("Authentication required");
       }
@@ -688,7 +944,7 @@ const handler = createMcpHandler((server) => {
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        const result = await client.deployments.retrieve(id);
+        const result = await client.deployments.retrieve(deployment_id);
 
         return {
           content: [
@@ -706,88 +962,6 @@ const handler = createMcpHandler((server) => {
             {
               type: "text",
               text: `Error fetching deployment: ${error}`,
-            },
-          ],
-        };
-      }
-    },
-  );
-
-  // Get Invocation Tool
-  server.tool(
-    "get_invocation",
-    "Retrieve detailed information about a specific action invocation including its execution status, output data, error messages, and runtime metrics. Use this to check if an invoked action completed successfully, get its results, or troubleshoot failed executions.",
-    {
-      id: z
-        .string()
-        .describe(
-          "Unique identifier of the action invocation to retrieve information about. You get this from invoke_action responses.",
-        ),
-    },
-    async ({ id }, extra) => {
-      if (!extra.authInfo) {
-        throw new Error("Authentication required");
-      }
-
-      const client = createKernelClient(extra.authInfo.token);
-
-      try {
-        const result = await client.invocations.retrieve(id);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: result
-                ? JSON.stringify(result, null, 2)
-                : "Invocation not found",
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error fetching invocation: ${error}`,
-            },
-          ],
-        };
-      }
-    },
-  );
-
-  // List Browsers Tool
-  server.tool(
-    "list_browsers",
-    "Retrieve a list of all currently active browser sessions in the Kernel platform. This shows you which browsers are running, their session IDs, creation times, and basic configuration. Use this to discover existing browser sessions before creating new ones or to audit current browser usage.",
-    {},
-    async (_args, extra) => {
-      if (!extra.authInfo) {
-        throw new Error("Authentication required");
-      }
-
-      const client = createKernelClient(extra.authInfo.token);
-
-      try {
-        const result = await client.browsers.list();
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: result
-                ? JSON.stringify(result, null, 2)
-                : "No browsers found",
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error fetching browsers: ${error}`,
             },
           ],
         };
@@ -841,400 +1015,288 @@ const handler = createMcpHandler((server) => {
     },
   );
 
-  // // Browser Agent Tool (one-off NL web task)
-  // server.tool(
-  //   "browser_agent",
-  //   "Run a one-off browser automation task in Kernel using a chat-style instruction. Optionally provide a starting URL.",
-  //   {
-  //     task: z
-  //       .string()
-  //       .describe("Natural language instruction for the browser task (required)"),
-  //     url: z
-  //       .string()
-  //       .url()
-  //       .describe("Optional starting URL to open before executing the task")
-  //       .optional(),
-  //   },
-  //   async (
-  //     { task, url },
-  //     extra,
-  //   ) => {
-  //     if (!extra.authInfo) {
-  //       throw new Error("Authentication required");
-  //     }
+  // Setup Profile Tool
+  server.tool(
+    "setup_profile",
+    "Create a new browser profile or update an existing one, and guide the user through the setup process. This tool creates a profile (or uses existing), launches a browser session with save_changes enabled, and provides a live view URL for the user to manually sign into accounts. When the user is done, use the delete_browser tool to close the session and save the profile.",
+    {
+      profile_name: z
+        .string()
+        .describe(
+          "Name for the profile. Must be 1-255 characters, using letters, numbers, dots, underscores, or hyphens. This will be used to identify the profile in future browser sessions.",
+        ),
+      update_existing: z
+        .boolean()
+        .describe("If true and the profile already exists, it will be updated. If false and the profile exists, an error will be returned. Defaults to false to prevent accidental overwrites.")
+        .optional()
+        .default(false),
+    },
+    async ({ profile_name, update_existing }, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
 
-  //     const client = createKernelClient(extra.authInfo.token);
+      const client = createKernelClient(extra.authInfo.token);
 
-  //     try {
-  //       // Invoke the deployed app action
-  //       const payloadObj: Record<string, unknown> = { task };
-  //       if (url) payloadObj.url = url;
+      try {
+        // Step 1: Check if profile already exists
+        const existingProfiles = await client.profiles.list();
+        const existingProfile = existingProfiles?.find(p => p.name === profile_name);
 
-  //       const invocation = await client.invocations.create({
-  //         app_name: "mcp-browser-agent",
-  //         action_name: "task-agent",
-  //         payload: JSON.stringify(payloadObj),
-  //         version: "latest",
-  //         async: true,
-  //       });
+        let profile;
+        let isNewProfile = false;
 
-  //       if (!invocation) {
-  //         throw new Error("Failed to create invocation");
-  //       }
+        if (existingProfile) {
+          if (!update_existing) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `⚠️ **Profile "${profile_name}" already exists!**
 
-  //       const stream = await client.invocations.follow(invocation.id);
-  //       let finalResult = invocation;
+🔧 **Existing Profile Details:**
+- Profile ID: ${existingProfile.id}
+- Created: ${new Date(existingProfile.created_at).toLocaleString()}
+- Last Used: ${existingProfile.last_used_at ? new Date(existingProfile.last_used_at).toLocaleString() : 'Never'}
 
-  //       for await (const evt of stream) {
-  //         switch (evt.event) {
-  //           case "error":
-  //             return {
-  //               content: [
-  //                 {
-  //                   type: "text",
-  //                   text: JSON.stringify(
-  //                     {
-  //                       status: "error",
-  //                       message: "An error occurred during invocation",
-  //                       invocation_id: invocation.id,
-  //                       error: evt,
-  //                     },
-  //                     null,
-  //                     2,
-  //                   ),
-  //                 },
-  //               ],
-  //             };
-  //           case "invocation_state":
-  //             finalResult = evt.invocation || finalResult;
-  //             if (
-  //               finalResult.status === "succeeded" ||
-  //               finalResult.status === "failed"
-  //             ) {
-  //               break;
-  //             }
-  //             break;
-  //           default:
-  //             break;
-  //         }
+**Options:**
+1. **Update existing profile** - Set update_existing: true to update this profile
+2. **Create new profile** - Choose a different name for a new profile
 
-  //         if (
-  //           finalResult.status === "succeeded" ||
-  //           finalResult.status === "failed"
-  //         ) {
-  //           break;
-  //         }
-  //       }
+**Suggested alternative names:**
+- ${profile_name}-2
+- ${profile_name}-new
+- ${profile_name}-${new Date().getFullYear()}
 
-  //       return {
-  //         content: [
-  //           {
-  //             type: "text",
-  //             text: JSON.stringify(finalResult, null, 2),
-  //           },
-  //         ],
-  //       };
-  //     } catch (error) {
-  //       return {
-  //         content: [
-  //           {
-  //             type: "text",
-  //             text: `Error running browser agent: ${error}`,
-  //           },
-  //         ],
-  //       };
-  //     }
-  //   },
-  // );
+To update the existing profile, call setup_profile again with update_existing: true`,
+                },
+              ],
+            };
+          } else {
+            // Use existing profile for update
+            profile = existingProfile;
+          }
+        } else {
+          // Create new profile
+          profile = await client.profiles.create({ name: profile_name });
+          isNewProfile = true;
+        }
 
-  // // Deploy App Tool
-  // server.tool(
-  //   "deploy_app",
-  //   "Deploy TypeScript or Python apps to Kernel. Provide a dictionary of files where keys are relative file paths and values are file contents. This tool will automatically detect the language, create appropriate project files (package.json/tsconfig.json for TypeScript, pyproject.toml for Python), bundle it into a zip archive, and deploy it to Kernel.",
-  //   {
-  //     files: z
-  //       .record(z.string(), z.string())
-  //       .describe(
-  //         "Dictionary of files where keys are relative file paths (e.g. 'src/index.ts', 'src/utils.ts') and values are the file contents. Relative imports will work correctly as files maintain their paths.",
-  //       ),
-  //     entrypoint: z
-  //       .string()
-  //       .describe(
-  //         "Optional: Explicit entrypoint file path (e.g. 'src/index.ts'). If not provided, will auto-detect from common patterns.",
-  //       )
-  //       .optional(),
-  //     dependencies: z
-  //       .record(z.string(), z.string())
-  //       .describe(
-  //         "Map of package names to exact version strings for production dependencies only. These override auto-discovered runtime dependencies. Do not include dev dependencies.",
-  //       ),
-  //     version: z
-  //       .string()
-  //       .describe("Optional: Version label to deploy (default 'latest')")
-  //       .optional(),
-  //     force: z
-  //       .boolean()
-  //       .describe(
-  //         "If true, allow overwriting an existing version with the same label (default false)",
-  //       )
-  //       .optional(),
-  //   },
-  //   async (params, extra) => {
-  //     if (!extra.authInfo) {
-  //       throw new Error("Authentication required");
-  //     }
+        // Step 2: Create a browser session with the profile and save_changes enabled
+        const browser = await client.browsers.create({
+          stealth: true,
+          timeout_seconds: 1800, // 30 minutes - enough time for manual profile setup
+          profile: {
+            name: profile_name,
+            save_changes: true,
+          },
+        });
 
-  //     const {
-  //       files,
-  //       entrypoint,
-  //       version = "latest",
-  //       force = false,
-  //       dependencies: providedDependencies,
-  //     } = params;
+        // Step 3: Return instructions and live view URL
+        const liveViewUrl = browser.browser_live_view_url;
+        const sessionId = browser.session_id;
 
-  //     // Validate input
-  //     if (!files || Object.keys(files).length === 0) {
-  //       throw new Error("No files provided");
-  //     }
+        return {
+          content: [
+            {
+              type: "text",
+              text: `🎉 Profile "${profile_name}" ${isNewProfile ? 'created' : 'loaded for update'} successfully!
 
-  //     const client = createKernelClient(extra.authInfo.token);
+📋 **Setup Instructions:**
 
-  //     try {
-  //       // Detect entrypoint
-  //       const entrypointRelPath = detectEntrypoint(files, entrypoint);
+1. **Open the browser session** by clicking this link: [Open Browser Session](${liveViewUrl})
 
-  //       // Resolve dependencies from all files
-  //       const { discoveredPackages, dependencies: discoveredDependencies } =
-  //         await resolveDependencies(files, providedDependencies);
+2. **${isNewProfile ? 'Sign into accounts' : 'Update your accounts'}** - Navigate to any websites and sign into the accounts you want to save in this profile (Gmail, social media, work accounts, etc.)
 
-  //       // Merge auto-discovered and explicitly provided dependencies
-  //       const resolvedDependencies = mergeDependencies(
-  //         discoveredDependencies,
-  //         providedDependencies,
-  //         entrypointRelPath,
-  //       );
+3. **When you're done setting up**, tell me: "I'm done" or "Save my profile" and I'll close the browser session to save your profile.
 
-  //       // Generate project files based on detected language
-  //       const projectFiles = generateProjectFiles(
-  //         entrypointRelPath,
-  //         resolvedDependencies,
-  //       );
+4. **Your profile will be automatically ${isNewProfile ? 'saved' : 'updated'}** when the browser session closes.
 
-  //       const zip = new JSZip();
-  //       // Add all generated project files
-  //       Object.entries(projectFiles).forEach(([filePath, content]) => {
-  //         zip.file(filePath, content);
-  //       });
+🔧 **Profile Details:**
+- Profile Name: ${profile_name}
+- Profile ID: ${profile.id}
+- Session ID: ${sessionId}
+- Live View URL: [${liveViewUrl}](${liveViewUrl})
+${!isNewProfile ? `- Created: ${new Date(profile.created_at).toLocaleString()}
+- Last Used: ${profile.last_used_at ? new Date(profile.last_used_at).toLocaleString() : 'Never'}` : ''}
 
-  //       // Add all user files with their original paths
-  //       Object.entries(files).forEach(([filePath, content]) => {
-  //         zip.file(filePath, content);
-  //       });
+💡 **Future Use:**
+Once ${isNewProfile ? 'saved' : 'updated'}, you can use this profile in any future browser session by specifying:
+- Profile name: "${profile_name}" 
+- With or without save_changes (read-only vs editable mode)
 
-  //       const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+The profile will load all saved cookies, logins, and session data into new browser sessions!`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error setting up profile: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    },
+  );
 
-  //       // Write buffer to a temporary location so we can stream it
-  //       const tmpZipPath = path.join(
-  //         os.tmpdir(),
-  //         `kernel_${crypto.randomUUID()}.zip`,
-  //       );
-  //       await fs.writeFile(tmpZipPath, zipBuffer);
+  // List Profiles Tool
+  server.tool(
+    "list_profiles",
+    "List all available browser profiles in your Kernel account. Profiles contain saved cookies, logins, and session data that can be loaded into browser sessions.",
+    {},
+    async (_args, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
 
-  //       try {
-  //         const response = await client.deployments.create(
-  //           {
-  //             file: createReadStream(tmpZipPath),
-  //             entrypoint_rel_path: entrypointRelPath,
-  //             version,
-  //             force,
-  //           },
-  //           { maxRetries: 0 },
-  //         );
+      const client = createKernelClient(extra.authInfo.token);
 
-  //         // Follow deployment events via stream
-  //         let logMessages: string[] = [];
-  //         let finalDeployment = response;
-  //         let appVersionInfo: {
-  //           app_name: string;
-  //           version: string;
-  //           actions: AppAction[];
-  //         } | null = null;
+      try {
+        const profiles = await client.profiles.list();
 
-  //         try {
-  //           const stream = await client.deployments.follow(response.id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: profiles && profiles.length > 0
+                ? `📋 **Available Profiles (${profiles.length}):**
 
-  //           for await (const event of stream) {
-  //             switch (event.event) {
-  //               case "log":
-  //                 const logMessage = event.message?.replace(/\n$/, "") || "";
-  //                 logMessages.push(`LOG: ${logMessage}`);
-  //                 break;
+${profiles.map((profile, index) => 
+  `${index + 1}. **${profile.name || 'Unnamed'}**
+   - ID: ${profile.id}
+   - Created: ${new Date(profile.created_at).toLocaleString()}
+   - Last Used: ${profile.last_used_at ? new Date(profile.last_used_at).toLocaleString() : 'Never'}
+   - Last Updated: ${profile.updated_at ? new Date(profile.updated_at).toLocaleString() : 'Never'}
+`).join('\n')}
 
-  //               case "deployment_state":
-  //                 finalDeployment = event.deployment || finalDeployment;
+💡 **Usage:**
+- Use profile names in create_browser with the profile parameter
+- Set save_changes: true to modify profiles, false for read-only mode`
+              : "No profiles found. Use setup_profile to create your first profile!",
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error listing profiles: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    },
+  );
 
-  //                 if (
-  //                   finalDeployment.status === "failed" ||
-  //                   finalDeployment.status === "stopped"
-  //                 ) {
-  //                   return {
-  //                     content: [
-  //                       {
-  //                         type: "text",
-  //                         text: JSON.stringify(
-  //                           {
-  //                             status: "failed",
-  //                             deployment: finalDeployment,
-  //                             logs: logMessages,
-  //                             discovered_packages: discoveredPackages,
-  //                             resolved_dependencies: resolvedDependencies,
-  //                             files_deployed: Object.keys(files),
-  //                             entrypoint: entrypointRelPath,
-  //                             error: `Deployment ${finalDeployment.status}: ${finalDeployment.status_reason || "Unknown error"}`,
-  //                           },
-  //                           null,
-  //                           2,
-  //                         ),
-  //                       },
-  //                     ],
-  //                   };
-  //                 }
+  // Delete Profile Tool
+  server.tool(
+    "delete_profile",
+    "Permanently delete a browser profile and all its associated authentication data. This action cannot be undone, so make sure you no longer need the profile before deleting it.",
+    {
+      profile_name: z
+        .string()
+        .describe(
+          "Name of the profile to delete. Use list_profiles to see available profiles.",
+        ),
+    },
+    async ({ profile_name }, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
 
-  //                 if (finalDeployment.status === "running") {
-  //                   // Deployment completed successfully
-  //                   return {
-  //                     content: [
-  //                       {
-  //                         type: "text",
-  //                         text: JSON.stringify(
-  //                           {
-  //                             status: "success",
-  //                             deployment: finalDeployment,
-  //                             app_info: appVersionInfo,
-  //                             logs: logMessages,
-  //                             discovered_packages: discoveredPackages,
-  //                             resolved_dependencies: resolvedDependencies,
-  //                             files_deployed: Object.keys(files),
-  //                             entrypoint: entrypointRelPath,
-  //                             message: "✔ Deployment completed successfully",
-  //                           },
-  //                           null,
-  //                           2,
-  //                         ),
-  //                       },
-  //                     ],
-  //                   };
-  //                 }
-  //                 break;
+      const client = createKernelClient(extra.authInfo.token);
 
-  //               case "app_version_summary":
-  //                 appVersionInfo = {
-  //                   app_name: event.app_name,
-  //                   version: event.version,
-  //                   actions: event.actions || [],
-  //                 };
+      try {
+        // Verify profile exists first
+        const existingProfiles = await client.profiles.list();
+        const existingProfile = existingProfiles?.find(p => p.name === profile_name);
 
-  //                 if (event.actions && event.actions.length > 0) {
-  //                   const firstAction = event.actions[0].name;
-  //                   logMessages.push(
-  //                     `App "${event.app_name}" deployed (version: ${event.version})`,
-  //                   );
-  //                   logMessages.push(
-  //                     `Invoke with: kernel invoke ${event.app_name} ${firstAction} --payload '{...}'`,
-  //                   );
-  //                 }
-  //                 break;
+        if (!existingProfile) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `❌ **Profile "${profile_name}" not found!**
 
-  //               case "error":
-  //                 return {
-  //                   content: [
-  //                     {
-  //                       type: "text",
-  //                       text: JSON.stringify(
-  //                         {
-  //                           status: "error",
-  //                           deployment: finalDeployment,
-  //                           logs: logMessages,
-  //                           discovered_packages: discoveredPackages,
-  //                           resolved_dependencies: resolvedDependencies,
-  //                           files_deployed: Object.keys(files),
-  //                           entrypoint: entrypointRelPath,
-  //                           error: `${event.error?.code || "Unknown"}: ${event.error?.message || "Unknown error"}`,
-  //                         },
-  //                         null,
-  //                         2,
-  //                       ),
-  //                     },
-  //                   ],
-  //                 };
-  //             }
-  //           }
+Use list_profiles to see available profiles.`,
+              },
+            ],
+          };
+        }
 
-  //           // If we exit the loop without a final state, return what we have
-  //           return {
-  //             content: [
-  //               {
-  //                 type: "text",
-  //                 text: JSON.stringify(
-  //                   {
-  //                     status: "unknown",
-  //                     deployment: finalDeployment,
-  //                     app_info: appVersionInfo,
-  //                     logs: logMessages,
-  //                     discovered_packages: discoveredPackages,
-  //                     resolved_dependencies: resolvedDependencies,
-  //                     files_deployed: Object.keys(files),
-  //                     entrypoint: entrypointRelPath,
-  //                     message:
-  //                       "Deployment stream ended without clear final state",
-  //                   },
-  //                   null,
-  //                   2,
-  //                 ),
-  //               },
-  //             ],
-  //           };
-  //         } catch (streamError) {
-  //           // If streaming fails, return the initial deployment response with error info
-  //           return {
-  //             content: [
-  //               {
-  //                 type: "text",
-  //                 text: JSON.stringify(
-  //                   {
-  //                     status: "stream_error",
-  //                     deployment: response,
-  //                     logs: logMessages,
-  //                     discovered_packages: discoveredPackages,
-  //                     resolved_dependencies: resolvedDependencies,
-  //                     files_deployed: Object.keys(files),
-  //                     entrypoint: entrypointRelPath,
-  //                     error: `Stream error: ${streamError instanceof Error ? streamError.message : "Unknown streaming error"}`,
-  //                     message: "Deployment initiated but streaming failed",
-  //                   },
-  //                   null,
-  //                   2,
-  //                 ),
-  //               },
-  //             ],
-  //           };
-  //         }
-  //       } finally {
-  //         // Clean up temporary zip file
-  //         await fs.unlink(tmpZipPath).catch(() => {});
-  //       }
-  //     } catch (err) {
-  //       return {
-  //         content: [
-  //           {
-  //             type: "text",
-  //             text: `Error deploying app: ${err}`,
-  //           },
-  //         ],
-  //       };
-  //     }
-  //   },
-  // );
+        // Delete the profile
+        await client.profiles.delete(profile_name);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ **Profile "${profile_name}" deleted successfully!**
+
+The profile and all its associated authentication data have been permanently removed.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error deleting profile: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    },
+  );
+
+  // Get Invocation Tool
+  server.tool(
+    "get_invocation",
+    "Retrieve detailed information about a specific action invocation including its execution status, output data, error messages, and runtime metrics. Use this to check if an invoked action completed successfully, get its results, or troubleshoot failed executions.",
+    {
+      invocation_id: z
+        .string()
+        .describe(
+          "Unique identifier of the action invocation to retrieve information about. You get this from invoke_action responses.",
+        ),
+    },
+    async ({ invocation_id }, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const client = createKernelClient(extra.authInfo.token);
+
+      try {
+        const result = await client.invocations.retrieve(invocation_id);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: result
+                ? JSON.stringify(result, null, 2)
+                : "Invocation not found",
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error fetching invocation: ${error}`,
+            },
+          ],
+        };
+      }
+    },
+  );
 });
 
 async function handleAuthenticatedRequest(req: NextRequest): Promise<Response> {
