@@ -1100,28 +1100,28 @@ To update the existing profile, call setup_profile again with update_existing: t
           content: [
             {
               type: "text",
-              text: `🎉 Profile "${profile_name}" ${isNewProfile ? 'created' : 'loaded for update'} successfully!
+              text: `Profile "${profile_name}" ${isNewProfile ? 'created' : 'loaded for update'} successfully!
 
-📋 **Setup Instructions:**
+**Setup Instructions for the user:**
 
 1. **Open the browser session** by clicking this link: [Open Browser Session](${liveViewUrl})
 
-2. **${isNewProfile ? 'Sign into accounts' : 'Update your accounts'}** - Navigate to any websites and sign into the accounts you want to save in this profile (Gmail, social media, work accounts, etc.)
+2. **${isNewProfile ? 'Sign into accounts' : 'Update your accounts'}** - The user should navigate to any websites and sign into the accounts they want to save in this profile (Gmail, social media, work accounts, etc.)
 
-3. **When you're done setting up**, tell me: "I'm done" or "Save my profile" and I'll close the browser session to save your profile.
+3. **When the user is done setting up**, they should tell you: "I'm done" or "Save my profile" and you should call the delete_browser tool to close the browser session and save the profile.
 
-4. **Your profile will be automatically ${isNewProfile ? 'saved' : 'updated'}** when the browser session closes.
+4. **The profile will be automatically ${isNewProfile ? 'saved' : 'updated'}** when the browser session closes.
 
-🔧 **Profile Details:**
+**Profile Details:**
 - Profile Name: ${profile_name}
 - Profile ID: ${profile.id}
 - Session ID: ${sessionId}
-- Live View URL: [${liveViewUrl}](${liveViewUrl})
+- Live View URL: ${liveViewUrl}
 ${!isNewProfile ? `- Created: ${new Date(profile.created_at).toLocaleString()}
 - Last Used: ${profile.last_used_at ? new Date(profile.last_used_at).toLocaleString() : 'Never'}` : ''}
 
-💡 **Future Use:**
-Once ${isNewProfile ? 'saved' : 'updated'}, you can use this profile in any future browser session by specifying:
+**Future Use:**
+Once ${isNewProfile ? 'saved' : 'updated'}, this profile can be used in any future browser session by specifying:
 - Profile name: "${profile_name}" 
 - With or without save_changes (read-only vs editable mode)
 
