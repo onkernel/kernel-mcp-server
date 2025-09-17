@@ -1,7 +1,7 @@
 'use client';
 
 import { OrganizationMembershipResource } from '@clerk/types';
-import { useAuth, useOrganizationList, useUser, CreateOrganization } from '@clerk/nextjs';
+import { useAuth, useOrganizationList, useUser, CreateOrganization, UserButton } from '@clerk/nextjs';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, Suspense, useEffect, useRef } from 'react';
 import { Col } from '@/components/col'
@@ -107,6 +107,13 @@ function SelectOrgContent(): React.ReactElement {
   if (isLoaded && !userMemberships?.isLoading && (!userMemberships?.data || userMemberships.data.length === 0)) {
     return (
       <Col className="min-h-screen items-center justify-center">
+        {/* User button in top-right corner */}
+        <div className="absolute top-4 right-4">
+          <UserButton 
+            afterSignOutUrl={`/select-org?${searchParams.toString()}`}
+          />
+        </div>
+        
         <Col className="text-center max-w-md mx-auto p-6 gap-6">
           <h1 className="text-2xl font-bold text-foreground">Create Organization</h1>
           <p className="text-muted-foreground">
@@ -127,6 +134,13 @@ function SelectOrgContent(): React.ReactElement {
 
   return (
     <Col className="min-h-screen items-center justify-center">
+      {/* User button in top-right corner */}
+      <div className="absolute top-4 right-4">
+        <UserButton 
+          afterSignOutUrl={`/select-org?${searchParams.toString()}`}
+        />
+      </div>
+      
       <Col className="max-w-md w-full mx-auto p-6 bg-muted rounded-lg gap-6">
         <Col className="text-center gap-2">
           <h1 className="text-2xl font-bold text-foreground">Select Organization</h1>
