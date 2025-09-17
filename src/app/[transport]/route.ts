@@ -130,7 +130,7 @@ const handler = createMcpHandler((server) => {
             {
               uri: "profiles://",
               mimeType: "application/json",
-              text: JSON.stringify(profiles, null, 2),
+              text: profiles ? JSON.stringify(profiles, null, 2) : "No profiles found",
             },
           ],
         };
@@ -177,7 +177,7 @@ const handler = createMcpHandler((server) => {
             {
               uri: "browsers://",
               mimeType: "application/json",
-              text: JSON.stringify(browsers, null, 2),
+              text: browsers ? JSON.stringify(browsers, null, 2) : "No browsers found",
             },
           ],
         };
@@ -224,7 +224,7 @@ const handler = createMcpHandler((server) => {
             {
               uri: "apps://",
               mimeType: "application/json",
-              text: JSON.stringify(apps, null, 2),
+              text: apps ? JSON.stringify(apps, null, 2) : "No apps found",
             },
           ],
         };
@@ -570,7 +570,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        const result = await client.apps.list({
+        const apps = await client.apps.list({
           ...(app_name && { app_name: app_name }),
           ...(version && { version: version }),
         });
@@ -579,8 +579,8 @@ Production-ready platform for deploying and hosting browser automation code. Han
           content: [
             {
               type: "text",
-              text: result
-                ? JSON.stringify({ apps: result }, null, 2)
+              text: apps
+                ? JSON.stringify(apps, null, 2)
                 : "No apps found",
             },
           ],
@@ -646,7 +646,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
         }
 
         const stream = await client.invocations.follow(invocation.id);
-        let finalResult = invocation;
+        let finalInvocation = invocation;
 
         for await (const evt of stream) {
           switch (evt.event) {
@@ -670,12 +670,12 @@ Production-ready platform for deploying and hosting browser automation code. Han
               };
 
             case "invocation_state":
-              finalResult = evt.invocation || finalResult;
+              finalInvocation = evt.invocation || finalInvocation;
 
               // Break out of the loop when invocation is complete or failed
               if (
-                finalResult.status === "succeeded" ||
-                finalResult.status === "failed"
+                finalInvocation.status === "succeeded" ||
+                finalInvocation.status === "failed"
               ) {
                 break;
               }
@@ -691,8 +691,8 @@ Production-ready platform for deploying and hosting browser automation code. Han
 
           // Exit the loop if invocation is in a final state
           if (
-            finalResult.status === "succeeded" ||
-            finalResult.status === "failed"
+            finalInvocation.status === "succeeded" ||
+            finalInvocation.status === "failed"
           ) {
             break;
           }
@@ -702,7 +702,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
           content: [
             {
               type: "text",
-              text: JSON.stringify(finalResult, null, 2),
+              text: JSON.stringify(finalInvocation, null, 2),
             },
           ],
         };
@@ -738,14 +738,14 @@ Production-ready platform for deploying and hosting browser automation code. Han
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        const result = await client.browsers.retrieve(session_id);
+        const browser = await client.browsers.retrieve(session_id);
 
         return {
           content: [
             {
               type: "text",
-              text: result
-                ? JSON.stringify(result, null, 2)
+              text: browser
+                ? JSON.stringify(browser, null, 2)
                 : "Browser session not found",
             },
           ],
@@ -854,9 +854,9 @@ Production-ready platform for deploying and hosting browser automation code. Han
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        const result = await client.browsers.list();
+        const browsers = await client.browsers.list();
 
-        const resultWithoutCdpWsUrl = result.map((browser) => {
+        const browsersWithoutCdpWsUrl = browsers.map((browser) => {
           return { ...browser, cdp_ws_url: undefined };
         });
 
@@ -864,8 +864,8 @@ Production-ready platform for deploying and hosting browser automation code. Han
           content: [
             {
               type: "text",
-              text: resultWithoutCdpWsUrl
-                ? JSON.stringify(resultWithoutCdpWsUrl, null, 2)
+              text: browsersWithoutCdpWsUrl
+                ? JSON.stringify(browsersWithoutCdpWsUrl, null, 2)
                 : "No browsers found",
             },
           ],
@@ -944,14 +944,14 @@ Production-ready platform for deploying and hosting browser automation code. Han
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        const result = await client.deployments.retrieve(deployment_id);
+        const deployment = await client.deployments.retrieve(deployment_id);
 
         return {
           content: [
             {
               type: "text",
-              text: result
-                ? JSON.stringify(result, null, 2)
+              text: deployment
+                ? JSON.stringify(deployment, null, 2)
                 : "Deployment not found",
             },
           ],
@@ -988,7 +988,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        const result = await client.deployments.list({
+        const deployments = await client.deployments.list({
           ...(app_name && { app_name: app_name }),
         });
 
@@ -996,8 +996,8 @@ Production-ready platform for deploying and hosting browser automation code. Han
           content: [
             {
               type: "text",
-              text: result
-                ? JSON.stringify(result, null, 2)
+              text: deployments
+                ? JSON.stringify(deployments, null, 2)
                 : "No deployments found",
             },
           ],
@@ -1273,14 +1273,14 @@ The profile and all its associated authentication data have been permanently rem
       const client = createKernelClient(extra.authInfo.token);
 
       try {
-        const result = await client.invocations.retrieve(invocation_id);
+        const invocation = await client.invocations.retrieve(invocation_id);
 
         return {
           content: [
             {
               type: "text",
-              text: result
-                ? JSON.stringify(result, null, 2)
+              text: invocation
+                ? JSON.stringify(invocation, null, 2)
                 : "Invocation not found",
             },
           ],
