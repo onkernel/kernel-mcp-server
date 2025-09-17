@@ -1085,7 +1085,7 @@ To update the existing profile, call setup_profile again with update_existing: t
         // Step 2: Create a browser session with the profile and save_changes enabled
         const browser = await client.browsers.create({
           stealth: true,
-          timeout_seconds: 1800, // 30 minutes - enough time for manual profile setup
+          timeout_seconds: 300, // 5 minutes - enough time for manual profile setup
           profile: {
             name: profile_name,
             save_changes: true,
