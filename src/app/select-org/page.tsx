@@ -72,18 +72,19 @@ function SelectOrgContent(): React.ReactElement {
     try {
       await setActive({ organization: selectedOrgId });
       
-      // After setting active org, redirect back to authorize
-      const authorizeUrl = new URL('/authorize', window.location.origin);
+      // After setting active org, redirect back to requested return path (defaults to /authorize)
+      const returnTo = searchParams.get('return_to') || '/authorize';
+      const continueUrl = new URL(returnTo, window.location.origin);
       
       // Add all original OAuth parameters
       Object.entries(originalParams).forEach(([key, value]) => {
-        if (value) authorizeUrl.searchParams.set(key, value);
+        if (value) continueUrl.searchParams.set(key, value);
       });
       
       // Add the selected orgId as a parameter
-      authorizeUrl.searchParams.set('org_id', selectedOrgId);
+      continueUrl.searchParams.set('org_id', selectedOrgId);
 
-      const redirectUri = authorizeUrl.toString();
+      const redirectUri = continueUrl.toString();
       
       router.push(redirectUri);
     } catch (error) {
