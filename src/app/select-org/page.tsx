@@ -72,8 +72,11 @@ function SelectOrgContent(): React.ReactElement {
       const continueUrl = new URL(returnTo, window.location.origin);
       
       // Add all query parameters (including Vercel params like configurationId, teamId, etc.)
+      // but exclude return_to to avoid redirect loops
       allParams.forEach((value, key) => {
-        continueUrl.searchParams.set(key, value);
+        if (key !== 'return_to') {
+          continueUrl.searchParams.set(key, value);
+        }
       });
       
       // Add the selected orgId as a parameter
