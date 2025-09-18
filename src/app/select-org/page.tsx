@@ -49,16 +49,11 @@ function SelectOrgContent(): React.ReactElement {
     updateScrollState();
   }, [userMemberships?.data]);
 
-  // Get the original OAuth parameters from the URL
-  const originalParams = {
-    client_id: searchParams.get('client_id'),
-    redirect_uri: searchParams.get('redirect_uri'),
-    response_type: searchParams.get('response_type'),
-    scope: searchParams.get('scope'),
-    state: searchParams.get('state'),
-    code_challenge: searchParams.get('code_challenge'),
-    code_challenge_method: searchParams.get('code_challenge_method'),
-  };
+  // Get all query parameters from the URL
+  const allParams = new URLSearchParams();
+  searchParams.forEach((value, key) => {
+    allParams.set(key, value);
+  });
 
   const handleOrgSelect = (organizationId: string): void => {
     setSelectedOrgId(organizationId);
@@ -76,9 +71,9 @@ function SelectOrgContent(): React.ReactElement {
       const returnTo = searchParams.get('return_to') || '/authorize';
       const continueUrl = new URL(returnTo, window.location.origin);
       
-      // Add all original OAuth parameters
-      Object.entries(originalParams).forEach(([key, value]) => {
-        if (value) continueUrl.searchParams.set(key, value);
+      // Add all query parameters (including Vercel params like configurationId, teamId, etc.)
+      allParams.forEach((value, key) => {
+        continueUrl.searchParams.set(key, value);
       });
       
       // Add the selected orgId as a parameter
