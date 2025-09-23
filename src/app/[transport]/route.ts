@@ -7,60 +7,11 @@ import { NextRequest } from "next/server";
 import { Kernel } from "@onkernel/sdk";
 import { z } from "zod";
 
-// Mintlify Search API types
-interface MintlifyChunkMetadata {
-  title?: string;
-  breadcrumbs?: string[];
-  hash?: string;
-  [key: string]: unknown;
-}
-
-interface MintlifyChunk {
-  id: string;
-  link: string;
-  created_at: string;
-  updated_at: string;
-  chunk_html?: string;
-  metadata?: MintlifyChunkMetadata;
-  tracking_id: string;
-  time_stamp?: string;
-  dataset_id: string;
-  weight: number;
-  location?: Record<string, unknown>;
-  image_urls?: string[];
-  tag_set: string[];
-  num_value?: number;
-}
-
-interface MintlifyChunkWrapper {
-  chunk: MintlifyChunk;
-  highlights?: string[];
-  score: number;
-}
-
-interface MintlifyGroup {
-  id: string;
-  name: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
-  dataset_id: string;
-  tracking_id: string;
-  metadata: Record<string, unknown>;
-  tag_set: string[];
-}
-
+// Mintlify Assistant API types
 interface MintlifySearchResult {
-  group: MintlifyGroup;
-  chunks: MintlifyChunkWrapper[];
-  file_id?: string;
-}
-
-interface MintlifySearchResponse {
-  id: string;
-  results: MintlifySearchResult[];
-  corrected_query?: string;
-  total_pages: number;
+  content: string;
+  path: string;
+  metadata: Record<string, unknown>;
 }
 
 function createKernelClient(apiKey: string) {
@@ -350,25 +301,25 @@ Production-ready platform for deploying and hosting browser automation code. Han
         ),
     },
     async ({ query }, extra) => {
-      if (!process.env.MINTLIFY_API_TOKEN) {
-        console.error("MINTLIFY_API_TOKEN environment variable is not set");
+      if (!process.env.MINTLIFY_ASSISTANT_API_TOKEN) {
+        console.error("MINTLIFY_ASSISTANT_API_TOKEN environment variable is not set");
         return {
           content: [
             {
               type: "text",
-              text: "Error: MINTLIFY_API_TOKEN environment variable is not set",
+              text: "Error: MINTLIFY_ASSISTANT_API_TOKEN environment variable is not set",
             },
           ],
         };
       }
 
-      if (!process.env.MINTLIFY_DATASET_ID) {
-        console.error("MINTLIFY_DATASET_ID environment variable is not set");
+      if (!process.env.MINTLIFY_DOMAIN) {
+        console.error("MINTLIFY_DOMAIN environment variable is not set");
         return {
           content: [
             {
               type: "text",
-              text: "Error: MINTLIFY_DATASET_ID environment variable is not set",
+              text: "Error: MINTLIFY_DOMAIN environment variable is not set",
             },
           ],
         };
@@ -388,67 +339,18 @@ Production-ready platform for deploying and hosting browser automation code. Han
       }
 
       const headers = {
-        accept: "*/*",
-        "accept-language": "en-US,en;q=0.6",
-        authorization: process.env.MINTLIFY_API_TOKEN,
-        "tr-dataset": process.env.MINTLIFY_DATASET_ID,
-        "x-api-version": "V2",
+        "Authorization": `Bearer ${process.env.MINTLIFY_ASSISTANT_API_TOKEN}`,
         "Content-Type": "application/json",
       };
 
       const searchBody = {
         query: query,
-        search_type: "fulltext",
-        extend_results: true,
-        highlight_options: {
-          highlight_window: 10,
-          highlight_max_num: 3,
-          highlight_max_length: 5,
-          highlight_strategy: "exactmatch",
-          highlight_delimiters: ["?", ",", ".", "!", "\n", " "],
-          highlight_results: true,
-        },
-        score_threshold: 0.1, // Lower threshold for broader results
-        filters: {
-          must_not: [
-            {
-              field: "tag_set",
-              match: ["code"], // Exclude code blocks as suggested
-            },
-          ],
-        },
-        page_size: 10,
-        group_size: 5, // More chunks per group for comprehensive results
-        get_total_pages: true,
-        remove_stop_words: true,
-        slim_chunks: false, // Get full chunk data
-        use_quote_negated_terms: true,
-        scoring_options: {
-          semantic_boost: {
-            phrase: query,
-            distance_factor: 1.2,
-          },
-        },
-        sort_options: {
-          use_weights: true,
-        },
-        typo_options: {
-          correct_typos: true,
-          prioritize_domain_specifc_words: true,
-          one_typo_word_range: {
-            min: 4,
-            max: 8,
-          },
-          two_typo_word_range: {
-            min: 8,
-            max: 12,
-          },
-        },
+        pageSize: 10,
       };
 
       try {
         const searchResponse = await fetch(
-          "https://api.mintlifytrieve.com/api/chunk_group/group_oriented_search",
+          `https://api-dsc.mintlify.com/v1/search/${process.env.MINTLIFY_DOMAIN}`,
           {
             method: "POST",
             headers,
@@ -465,59 +367,17 @@ Production-ready platform for deploying and hosting browser automation code. Han
           );
         }
 
-        const searchResults: MintlifySearchResponse =
-          await searchResponse.json();
+        const searchResults: MintlifySearchResult[] = await searchResponse.json();
 
         // Format the search results for better readability
         let formattedResults = "# Documentation Search Results\n\n";
 
-        if (searchResults.results && searchResults.results.length > 0) {
-          searchResults.results.forEach(
-            (result: MintlifySearchResult, resultIndex: number) => {
-              if (result.chunks && result.chunks.length > 0) {
-                const groupName =
-                  result.group?.name || `Result Group ${resultIndex + 1}`;
-                formattedResults += `## ${groupName}\n\n`;
-
-                result.chunks.forEach(
-                  (chunkWrapper: MintlifyChunkWrapper, chunkIndex: number) => {
-                    const chunk = chunkWrapper.chunk;
-                    const title = chunk.metadata?.title || "Untitled";
-                    formattedResults += `### ${chunkIndex + 1}. ${title}\n\n`;
-
-                    // Add breadcrumb navigation if available
-                    if (
-                      chunk.metadata?.breadcrumbs &&
-                      chunk.metadata.breadcrumbs.length > 0
-                    ) {
-                      formattedResults += `**Navigation:** ${chunk.metadata.breadcrumbs.join(" > ")}\n\n`;
-                    }
-
-                    // Add score for relevance indication
-                    formattedResults += `**Relevance Score:** ${chunkWrapper.score.toFixed(3)}\n\n`;
-
-                    if (chunk.chunk_html) {
-                      // Remove HTML tags for cleaner text
-                      const cleanText = chunk.chunk_html.replace(
-                        /<[^>]*>/g,
-                        "",
-                      );
-                      formattedResults += `${cleanText}\n\n`;
-                    }
-
-                    if (
-                      chunkWrapper.highlights &&
-                      chunkWrapper.highlights.length > 0
-                    ) {
-                      formattedResults += `**Highlights:** ${chunkWrapper.highlights.join(", ")}\n\n`;
-                    }
-
-                    formattedResults += "---\n\n";
-                  },
-                );
-              }
-            },
-          );
+        if (searchResults && searchResults.length > 0) {
+          searchResults.forEach((result: MintlifySearchResult, index: number) => {
+            formattedResults += `## ${index + 1}. ${result.path}\n\n`;
+            formattedResults += `${result.content}\n\n`;
+            formattedResults += "---\n\n";
+          });
         } else {
           formattedResults += "No results found for your query.";
         }
