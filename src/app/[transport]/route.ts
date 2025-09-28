@@ -716,6 +716,17 @@ Production-ready platform for deploying and hosting browser automation code. Han
       try {
         const browsers = await client.browsers.list();
 
+        if (!browsers || browsers.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "No browsers found",
+              },
+            ],
+          };
+        }
+
         const browsersWithoutCdpWsUrl = browsers.map((browser) => {
           return { ...browser, cdp_ws_url: undefined };
         });
@@ -724,9 +735,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
           content: [
             {
               type: "text",
-              text: browsersWithoutCdpWsUrl
-                ? JSON.stringify(browsersWithoutCdpWsUrl, null, 2)
-                : "No browsers found",
+              text: JSON.stringify(browsersWithoutCdpWsUrl, null, 2),
             },
           ],
         };
