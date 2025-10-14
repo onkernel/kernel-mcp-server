@@ -1193,12 +1193,12 @@ The profile and all its associated authentication data have been permanently rem
   // Execute Playwright Code Tool
   server.tool(
     "execute_playwright_code",
-    "Execute Playwright automation code against a fresh Kernel browser session. Creates a new browser, connects via CDP, executes your TypeScript/Playwright code with a `page` object in scope, and returns the result with a video replay. The browser is automatically cleaned up after execution. Perfect for one-off automation tasks, web scraping, testing, and rapid prototyping without deploying a full app.",
+    "Execute Playwright/TypeScript automation code against a fresh Kernel browser session. Creates a new browser, connects via CDP, executes your TypeScript/Playwright code with a `page` object in scope, and returns the result with a video replay. The browser is automatically cleaned up after execution. Perfect for one-off automation tasks, web scraping, testing, and rapid prototyping without deploying a full app.",
     {
       code: z
         .string()
         .describe(
-          'Playwright/TypeScript code to execute. The code will have access to a Playwright `page` object and can use async/await. Example: "await page.goto(\\"https://example.com\\"); return await page.title();"',
+          'Playwright/TypeScript code to execute. The code will have access to a Playwright `page` object and can use async/await. Example: "await page.goto(\\"https://example.com\\"); return await page.title();" Tip: Use `await page._snapshotForAI()` in return statements after other Playwright commands to get a comprehensive snapshot of the page state.',
         ),
     },
     async ({ code }, extra) => {
