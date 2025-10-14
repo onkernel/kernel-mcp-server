@@ -6,6 +6,15 @@ import { verifyToken } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { Kernel } from "@onkernel/sdk";
 import { z } from "zod";
+import * as playwright from "playwright";
+import { createContext, Script } from "node:vm";
+import { createRequire } from "node:module";
+import {
+  ModuleKind,
+  ModuleResolutionKind,
+  ScriptTarget,
+  transpileModule,
+} from "typescript";
 
 // Mintlify Assistant API types
 interface MintlifySearchResult {
@@ -62,147 +71,139 @@ function createAuthErrorResponse(
 // Create MCP handler with tools
 const handler = createMcpHandler((server) => {
   // Register MCP resources
-  server.resource(
-    "profiles",
-    "profiles://",
-    async (uri, extra) => {
-      if (!extra.authInfo) {
-        throw new Error("Authentication required");
-      }
-
-      const client = createKernelClient(extra.authInfo.token);
-      const uriString = uri.toString();
-      
-      if (uriString === "profiles://") {
-        // List all profiles
-        const profiles = await client.profiles.list();
-        return {
-          contents: [
-            {
-              uri: "profiles://",
-              mimeType: "application/json",
-              text: profiles ? JSON.stringify(profiles, null, 2) : "No profiles found",
-            },
-          ],
-        };
-      } else if (uriString.startsWith("profiles://")) {
-        // Get specific profile by name
-        const profileName = uriString.replace("profiles://", "");
-        const profile = await client.profiles.retrieve(profileName);
-        
-        if (!profile) {
-          throw new Error(`Profile "${profileName}" not found`);
-        }
-
-        return {
-          contents: [
-            {
-              uri: uriString,
-              mimeType: "application/json",
-              text: JSON.stringify(profile, null, 2),
-            },
-          ],
-        };
-      }
-
-      throw new Error(`Invalid profile URI: ${uriString}`);
+  server.resource("profiles", "profiles://", async (uri, extra) => {
+    if (!extra.authInfo) {
+      throw new Error("Authentication required");
     }
-  );
 
-  server.resource(
-    "browsers",
-    "browsers://",
-    async (uri, extra) => {
-      if (!extra.authInfo) {
-        throw new Error("Authentication required");
+    const client = createKernelClient(extra.authInfo.token);
+    const uriString = uri.toString();
+
+    if (uriString === "profiles://") {
+      // List all profiles
+      const profiles = await client.profiles.list();
+      return {
+        contents: [
+          {
+            uri: "profiles://",
+            mimeType: "application/json",
+            text: profiles
+              ? JSON.stringify(profiles, null, 2)
+              : "No profiles found",
+          },
+        ],
+      };
+    } else if (uriString.startsWith("profiles://")) {
+      // Get specific profile by name
+      const profileName = uriString.replace("profiles://", "");
+      const profile = await client.profiles.retrieve(profileName);
+
+      if (!profile) {
+        throw new Error(`Profile "${profileName}" not found`);
       }
 
-      const client = createKernelClient(extra.authInfo.token);
-      const uriString = uri.toString();
-      
-      if (uriString === "browsers://") {
-        // List all browsers
-        const browsers = await client.browsers.list();
-        return {
-          contents: [
-            {
-              uri: "browsers://",
-              mimeType: "application/json",
-              text: browsers ? JSON.stringify(browsers, null, 2) : "No browsers found",
-            },
-          ],
-        };
-      } else if (uriString.startsWith("browsers://")) {
-        // Get specific browser by session ID
-        const sessionId = uriString.replace("browsers://", "");
-        const browser = await client.browsers.retrieve(sessionId);
-        
-        if (!browser) {
-          throw new Error(`Browser session "${sessionId}" not found`);
-        }
-
-        return {
-          contents: [
-            {
-              uri: uriString,
-              mimeType: "application/json",
-              text: JSON.stringify(browser, null, 2),
-            },
-          ],
-        };
-      }
-
-      throw new Error(`Invalid browser URI: ${uriString}`);
+      return {
+        contents: [
+          {
+            uri: uriString,
+            mimeType: "application/json",
+            text: JSON.stringify(profile, null, 2),
+          },
+        ],
+      };
     }
-  );
 
-  server.resource(
-    "apps",
-    "apps://",
-    async (uri, extra) => {
-      if (!extra.authInfo) {
-        throw new Error("Authentication required");
-      }
+    throw new Error(`Invalid profile URI: ${uriString}`);
+  });
 
-      const client = createKernelClient(extra.authInfo.token);
-      const uriString = uri.toString();
-      
-      if (uriString === "apps://") {
-        // List all apps
-        const apps = await client.apps.list();
-        return {
-          contents: [
-            {
-              uri: "apps://",
-              mimeType: "application/json",
-              text: apps ? JSON.stringify(apps, null, 2) : "No apps found",
-            },
-          ],
-        };
-      } else if (uriString.startsWith("apps://")) {
-        // Get specific app by name
-        const appName = uriString.replace("apps://", "");
-        const apps = await client.apps.list();
-        const app = apps?.find(a => a.app_name === appName);
-        
-        if (!app) {
-          throw new Error(`App "${appName}" not found`);
-        }
-
-        return {
-          contents: [
-            {
-              uri: uriString,
-              mimeType: "application/json",
-              text: JSON.stringify(app, null, 2),
-            },
-          ],
-        };
-      }
-
-      throw new Error(`Invalid app URI: ${uriString}`);
+  server.resource("browsers", "browsers://", async (uri, extra) => {
+    if (!extra.authInfo) {
+      throw new Error("Authentication required");
     }
-  );
+
+    const client = createKernelClient(extra.authInfo.token);
+    const uriString = uri.toString();
+
+    if (uriString === "browsers://") {
+      // List all browsers
+      const browsers = await client.browsers.list();
+      return {
+        contents: [
+          {
+            uri: "browsers://",
+            mimeType: "application/json",
+            text: browsers
+              ? JSON.stringify(browsers, null, 2)
+              : "No browsers found",
+          },
+        ],
+      };
+    } else if (uriString.startsWith("browsers://")) {
+      // Get specific browser by session ID
+      const sessionId = uriString.replace("browsers://", "");
+      const browser = await client.browsers.retrieve(sessionId);
+
+      if (!browser) {
+        throw new Error(`Browser session "${sessionId}" not found`);
+      }
+
+      return {
+        contents: [
+          {
+            uri: uriString,
+            mimeType: "application/json",
+            text: JSON.stringify(browser, null, 2),
+          },
+        ],
+      };
+    }
+
+    throw new Error(`Invalid browser URI: ${uriString}`);
+  });
+
+  server.resource("apps", "apps://", async (uri, extra) => {
+    if (!extra.authInfo) {
+      throw new Error("Authentication required");
+    }
+
+    const client = createKernelClient(extra.authInfo.token);
+    const uriString = uri.toString();
+
+    if (uriString === "apps://") {
+      // List all apps
+      const apps = await client.apps.list();
+      return {
+        contents: [
+          {
+            uri: "apps://",
+            mimeType: "application/json",
+            text: apps ? JSON.stringify(apps, null, 2) : "No apps found",
+          },
+        ],
+      };
+    } else if (uriString.startsWith("apps://")) {
+      // Get specific app by name
+      const appName = uriString.replace("apps://", "");
+      const apps = await client.apps.list();
+      const app = apps?.find((a) => a.app_name === appName);
+
+      if (!app) {
+        throw new Error(`App "${appName}" not found`);
+      }
+
+      return {
+        contents: [
+          {
+            uri: uriString,
+            mimeType: "application/json",
+            text: JSON.stringify(app, null, 2),
+          },
+        ],
+      };
+    }
+
+    throw new Error(`Invalid app URI: ${uriString}`);
+  });
 
   // MCP Prompt explaining Kernel concepts
   server.prompt(
@@ -211,7 +212,9 @@ const handler = createMcpHandler((server) => {
     {
       concept: z
         .enum(["browsers", "apps", "overview"])
-        .describe("The specific concept to explain: browsers (sessions), apps (code execution), profiles (browser auth), or overview (all concepts)"),
+        .describe(
+          "The specific concept to explain: browsers (sessions), apps (code execution), profiles (browser auth), or overview (all concepts)",
+        ),
     },
     async ({ concept }) => {
       const explanations = {
@@ -272,7 +275,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
 - **Cost effective** - Only pay for active browser time
 - **Reliable** - Built for enterprise-scale automation
 
-**Perfect for:** AI agents, web automation, testing, scraping, form filling, and any task requiring browser interaction.`
+**Perfect for:** AI agents, web automation, testing, scraping, form filling, and any task requiring browser interaction.`,
       };
 
       return {
@@ -286,7 +289,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
           },
         ],
       };
-    }
+    },
   );
 
   // Search Docs Tool
@@ -302,7 +305,9 @@ Production-ready platform for deploying and hosting browser automation code. Han
     },
     async ({ query }, extra) => {
       if (!process.env.MINTLIFY_ASSISTANT_API_TOKEN) {
-        console.error("MINTLIFY_ASSISTANT_API_TOKEN environment variable is not set");
+        console.error(
+          "MINTLIFY_ASSISTANT_API_TOKEN environment variable is not set",
+        );
         return {
           content: [
             {
@@ -339,7 +344,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
       }
 
       const headers = {
-        "Authorization": `Bearer ${process.env.MINTLIFY_ASSISTANT_API_TOKEN}`,
+        Authorization: `Bearer ${process.env.MINTLIFY_ASSISTANT_API_TOKEN}`,
         "Content-Type": "application/json",
       };
 
@@ -367,17 +372,20 @@ Production-ready platform for deploying and hosting browser automation code. Han
           );
         }
 
-        const searchResults: MintlifySearchResult[] = await searchResponse.json();
+        const searchResults: MintlifySearchResult[] =
+          await searchResponse.json();
 
         // Format the search results for better readability
         let formattedResults = "# Documentation Search Results\n\n";
 
         if (searchResults && searchResults.length > 0) {
-          searchResults.forEach((result: MintlifySearchResult, index: number) => {
-            formattedResults += `## ${index + 1}. ${result.path}\n\n`;
-            formattedResults += `${result.content}\n\n`;
-            formattedResults += "---\n\n";
-          });
+          searchResults.forEach(
+            (result: MintlifySearchResult, index: number) => {
+              formattedResults += `## ${index + 1}. ${result.path}\n\n`;
+              formattedResults += `${result.content}\n\n`;
+              formattedResults += "---\n\n";
+            },
+          );
         } else {
           formattedResults += "No results found for your query.";
         }
@@ -439,9 +447,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
           content: [
             {
               type: "text",
-              text: apps
-                ? JSON.stringify(apps, null, 2)
-                : "No apps found",
+              text: apps ? JSON.stringify(apps, null, 2) : "No apps found",
             },
           ],
         };
@@ -675,7 +681,9 @@ Production-ready platform for deploying and hosting browser automation code. Han
           ...(persistence_id && { persistence: { id: persistence_id } }),
           ...(stealth && { stealth: stealth }),
           ...(timeout_seconds && { timeout_seconds: timeout_seconds }),
-          ...(profile_name && { profile: { name: profile_name, save_changes: false } }),
+          ...(profile_name && {
+            profile: { name: profile_name, save_changes: false },
+          }),
         });
 
         return {
@@ -896,7 +904,9 @@ Production-ready platform for deploying and hosting browser automation code. Han
         ),
       update_existing: z
         .boolean()
-        .describe("If true and the profile already exists, it will be updated. If false and the profile exists, an error will be returned. Defaults to false to prevent accidental overwrites.")
+        .describe(
+          "If true and the profile already exists, it will be updated. If false and the profile exists, an error will be returned. Defaults to false to prevent accidental overwrites.",
+        )
         .optional()
         .default(false),
     },
@@ -910,7 +920,9 @@ Production-ready platform for deploying and hosting browser automation code. Han
       try {
         // Step 1: Check if profile already exists
         const existingProfiles = await client.profiles.list();
-        const existingProfile = existingProfiles?.find(p => p.name === profile_name);
+        const existingProfile = existingProfiles?.find(
+          (p) => p.name === profile_name,
+        );
 
         let profile;
         let isNewProfile = false;
@@ -926,7 +938,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
 🔧 **Existing Profile Details:**
 - Profile ID: ${existingProfile.id}
 - Created: ${new Date(existingProfile.created_at).toLocaleString()}
-- Last Used: ${existingProfile.last_used_at ? new Date(existingProfile.last_used_at).toLocaleString() : 'Never'}
+- Last Used: ${existingProfile.last_used_at ? new Date(existingProfile.last_used_at).toLocaleString() : "Never"}
 
 **Options:**
 1. **Update existing profile** - Set update_existing: true to update this profile
@@ -969,28 +981,32 @@ To update the existing profile, call setup_profile again with update_existing: t
           content: [
             {
               type: "text",
-              text: `Profile "${profile_name}" ${isNewProfile ? 'created' : 'loaded for update'} successfully!
+              text: `Profile "${profile_name}" ${isNewProfile ? "created" : "loaded for update"} successfully!
 
 **Setup Instructions for the user:**
 
 1. **Open the browser session** by clicking this link: [Open Browser Session](${liveViewUrl})
 
-2. **${isNewProfile ? 'Sign into accounts' : 'Update your accounts'}** - The user should navigate to any websites and sign into the accounts they want to save in this profile (Gmail, social media, work accounts, etc.)
+2. **${isNewProfile ? "Sign into accounts" : "Update your accounts"}** - The user should navigate to any websites and sign into the accounts they want to save in this profile (Gmail, social media, work accounts, etc.)
 
 3. **When the user is done setting up**, they should tell you: "I'm done" or "Save my profile" and you should call the delete_browser tool to close the browser session and save the profile.
 
-4. **The profile will be automatically ${isNewProfile ? 'saved' : 'updated'}** when the browser session closes.
+4. **The profile will be automatically ${isNewProfile ? "saved" : "updated"}** when the browser session closes.
 
 **Profile Details:**
 - Profile Name: ${profile_name}
 - Profile ID: ${profile.id}
 - Session ID: ${sessionId}
 - Live View URL: ${liveViewUrl}
-${!isNewProfile ? `- Created: ${new Date(profile.created_at).toLocaleString()}
-- Last Used: ${profile.last_used_at ? new Date(profile.last_used_at).toLocaleString() : 'Never'}` : ''}
+${
+  !isNewProfile
+    ? `- Created: ${new Date(profile.created_at).toLocaleString()}
+- Last Used: ${profile.last_used_at ? new Date(profile.last_used_at).toLocaleString() : "Never"}`
+    : ""
+}
 
 **Future Use:**
-Once ${isNewProfile ? 'saved' : 'updated'}, this profile can be used in any future browser session by specifying:
+Once ${isNewProfile ? "saved" : "updated"}, this profile can be used in any future browser session by specifying:
 - Profile name: "${profile_name}" 
 - With or without save_changes (read-only vs editable mode)
 
@@ -1030,21 +1046,26 @@ The profile will load all saved cookies, logins, and session data into new brows
           content: [
             {
               type: "text",
-              text: profiles && profiles.length > 0
-                ? `📋 **Available Profiles (${profiles.length}):**
+              text:
+                profiles && profiles.length > 0
+                  ? `📋 **Available Profiles (${profiles.length}):**
 
-${profiles.map((profile, index) => 
-  `${index + 1}. **${profile.name || 'Unnamed'}**
+${profiles
+  .map(
+    (profile, index) =>
+      `${index + 1}. **${profile.name || "Unnamed"}**
    - ID: ${profile.id}
    - Created: ${new Date(profile.created_at).toLocaleString()}
-   - Last Used: ${profile.last_used_at ? new Date(profile.last_used_at).toLocaleString() : 'Never'}
-   - Last Updated: ${profile.updated_at ? new Date(profile.updated_at).toLocaleString() : 'Never'}
-`).join('\n')}
+   - Last Used: ${profile.last_used_at ? new Date(profile.last_used_at).toLocaleString() : "Never"}
+   - Last Updated: ${profile.updated_at ? new Date(profile.updated_at).toLocaleString() : "Never"}
+`,
+  )
+  .join("\n")}
 
 💡 **Usage:**
 - Use profile names in create_browser with the profile parameter
 - Set save_changes: true to modify profiles, false for read-only mode`
-              : "No profiles found. Use setup_profile to create your first profile!",
+                  : "No profiles found. Use setup_profile to create your first profile!",
             },
           ],
         };
@@ -1082,7 +1103,9 @@ ${profiles.map((profile, index) =>
       try {
         // Verify profile exists first
         const existingProfiles = await client.profiles.list();
-        const existingProfile = existingProfiles?.find(p => p.name === profile_name);
+        const existingProfile = existingProfiles?.find(
+          (p) => p.name === profile_name,
+        );
 
         if (!existingProfile) {
           return {
@@ -1160,6 +1183,207 @@ The profile and all its associated authentication data have been permanently rem
             {
               type: "text",
               text: `Error fetching invocation: ${error}`,
+            },
+          ],
+        };
+      }
+    },
+  );
+
+  // Execute Playwright Code Tool
+  server.tool(
+    "execute_playwright_code",
+    "Execute Playwright automation code against a fresh Kernel browser session. Creates a new browser, connects via CDP, executes your TypeScript/Playwright code with a `page` object in scope, and returns the result with a video replay. The browser is automatically cleaned up after execution. Perfect for one-off automation tasks, web scraping, testing, and rapid prototyping without deploying a full app.",
+    {
+      code: z
+        .string()
+        .describe(
+          'Playwright/TypeScript code to execute. The code will have access to a Playwright `page` object and can use async/await. Example: "await page.goto(\\"https://example.com\\"); return await page.title();"',
+        ),
+    },
+    async ({ code }, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const client = createKernelClient(extra.authInfo.token);
+      let kernelBrowser;
+      let browser;
+      let replay;
+
+      try {
+        if (!code || typeof code !== "string") {
+          throw new Error("code is required and must be a string");
+        }
+
+        // Create a new Kernel browser session
+        kernelBrowser = await client.browsers.create({
+          stealth: true,
+        });
+
+        if (!kernelBrowser || !kernelBrowser.cdp_ws_url) {
+          throw new Error("Failed to create browser session");
+        }
+
+        // Start replay recording
+        replay = await client.browsers.replays.start(kernelBrowser.session_id);
+
+        // Connect via CDP
+        browser = await playwright.chromium.connectOverCDP(
+          kernelBrowser.cdp_ws_url,
+        );
+        const context = browser.contexts()[0] || (await browser.newContext());
+        const page = context.pages()[0] || (await context.newPage());
+
+        // Wrap user code in an async function
+        const tsSource = [
+          "export default async function __user_execute(page: any) {",
+          code,
+          "\n}",
+        ].join("\n");
+
+        // Transpile TypeScript to JavaScript
+        const transpiled = transpileModule(tsSource, {
+          compilerOptions: {
+            module: ModuleKind.CommonJS,
+            target: ScriptTarget.ES2019,
+            esModuleInterop: true,
+            moduleResolution: ModuleResolutionKind.Classic,
+            isolatedModules: true,
+            skipLibCheck: true,
+            noEmitOnError: false,
+          },
+          reportDiagnostics: true,
+        });
+
+        if (transpiled.diagnostics && transpiled.diagnostics.length > 0) {
+          const formatted = transpiled.diagnostics
+            .map((d) =>
+              d.messageText && typeof d.messageText === "object"
+                ? `${d.code}: ${d.messageText.messageText}`
+                : `${d.code}: ${String(d.messageText)}`,
+            )
+            .join("\n");
+          throw new Error(`TypeScript transpile error(s):\n${formatted}`);
+        }
+
+        const jsCode: string = transpiled.outputText;
+
+        // Create VM context with page and common globals
+        const require = createRequire(import.meta.url);
+        const sandbox: Record<string, unknown> = {
+          page,
+          console,
+          module: { exports: {} },
+          exports: {},
+          require,
+          process,
+          setTimeout,
+          setInterval,
+          clearTimeout,
+          clearInterval,
+        };
+
+        const vmContext = createContext(sandbox);
+        const script = new Script(jsCode, {
+          filename: "execute_playwright_code.user.ts",
+        });
+        script.runInContext(vmContext, { timeout: 60_000 });
+
+        // Extract the exported function
+        const fn =
+          (sandbox.module as { exports?: { default?: unknown } })?.exports
+            ?.default ||
+          (sandbox.exports as { default?: unknown })?.default ||
+          (sandbox.module as { exports?: unknown })?.exports;
+
+        if (typeof fn !== "function") {
+          throw new Error("Executed module did not export a callable function");
+        }
+
+        // Execute the function
+        const result = await fn(page);
+
+        // Stop replay recording
+        let replayUrl = null;
+        if (replay && kernelBrowser?.session_id) {
+          try {
+            await client.browsers.replays.stop(replay.replay_id, {
+              id: kernelBrowser.session_id,
+            });
+            // Get the replay URL
+            replayUrl = replay.replay_view_url;
+          } catch (replayError) {
+            console.error("Error stopping replay:", replayError);
+          }
+        }
+
+        // Clean up browser connection
+        if (browser) {
+          await browser.close();
+        }
+
+        // Delete the Kernel browser session
+        if (kernelBrowser?.session_id) {
+          await client.browsers.deleteByID(kernelBrowser.session_id);
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  success: true,
+                  result,
+                  replay_url: replayUrl,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        // Stop replay on error if it was started
+        let replayUrl = null;
+        if (replay && kernelBrowser?.session_id) {
+          try {
+            await client.browsers.replays.stop(replay.replay_id, {
+              id: kernelBrowser.session_id,
+            });
+            replayUrl = replay.replay_view_url;
+          } catch (replayError) {
+            console.error("Error stopping replay:", replayError);
+          }
+        }
+
+        // Clean up on error
+        try {
+          if (browser) {
+            await browser.close();
+          }
+          if (kernelBrowser?.session_id) {
+            await client.browsers.deleteByID(kernelBrowser.session_id);
+          }
+        } catch (cleanupError) {
+          console.error("Error during cleanup:", cleanupError);
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  success: false,
+                  error: error instanceof Error ? error.message : String(error),
+                  stack: error instanceof Error ? error.stack : undefined,
+                  replay_url: replayUrl,
+                },
+                null,
+                2,
+              ),
             },
           ],
         };

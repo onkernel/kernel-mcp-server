@@ -12,7 +12,10 @@ const handler = async (request: NextRequest) => {
   const clerkDomain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
 
   if (!clerkDomain) {
-    return Response.json({ error: "server_error", error_description: "Clerk domain not found" }, { status: 500 });
+    return Response.json(
+      { error: "server_error", error_description: "Clerk domain not found" },
+      { status: 500 },
+    );
   }
 
   const clerkBaseUrl = `https://${clerkDomain}`;

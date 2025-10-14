@@ -134,7 +134,9 @@ export async function resolveOrgId({
           orgId: null,
           error: createErrorResponse(
             "invalid_grant",
-            "Organization context expired for client: " + clientId + ". Please re-authorize to select your organization.",
+            "Organization context expired for client: " +
+              clientId +
+              ". Please re-authorize to select your organization.",
           ),
         };
       }
@@ -183,7 +185,9 @@ export async function resolveOrgId({
         ),
       };
     } catch (error) {
-      console.error("[org-utils] error reading refresh_token mapping", { error });
+      console.error("[org-utils] error reading refresh_token mapping", {
+        error,
+      });
       return {
         orgId: null,
         error: createErrorResponse(

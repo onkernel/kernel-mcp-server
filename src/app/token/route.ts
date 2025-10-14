@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setOrgIdForJwt, setOrgIdForRefreshToken, deleteOrgIdForRefreshToken } from "@/lib/redis";
+import {
+  setOrgIdForJwt,
+  setOrgIdForRefreshToken,
+  deleteOrgIdForRefreshToken,
+} from "@/lib/redis";
 import { resolveOrgId } from "@/lib/org-utils";
 import { REFRESH_TOKEN_ORG_TTL_SECONDS } from "@/lib/const";
 
@@ -117,7 +121,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         refreshToken: refreshTokenFromBody,
       });
       if (orgResultPre.error) {
-        console.debug("[token] resolveOrgId (pre) returned error for refresh flow");
+        console.debug(
+          "[token] resolveOrgId (pre) returned error for refresh flow",
+        );
         return orgResultPre.error;
       }
       resolvedOrgId = orgResultPre.orgId;
@@ -224,7 +230,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           orgId,
           ttlSeconds: REFRESH_TOKEN_ORG_TTL_SECONDS,
         });
-        console.debug("[token] stored refresh_token→org_id mapping (auth_code)");
+        console.debug(
+          "[token] stored refresh_token→org_id mapping (auth_code)",
+        );
       }
       if (grantType === "refresh_token") {
         // Update mapping for rotated refresh token if provided
@@ -232,10 +240,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           // Clean up old mapping before storing the new one
           if (refreshTokenFromBody) {
             try {
-              await deleteOrgIdForRefreshToken({ refreshToken: refreshTokenFromBody });
-              console.debug("[token] deleted old refresh_token→org_id mapping (refresh)");
+              await deleteOrgIdForRefreshToken({
+                refreshToken: refreshTokenFromBody,
+              });
+              console.debug(
+                "[token] deleted old refresh_token→org_id mapping (refresh)",
+              );
             } catch (e) {
-              console.warn("[token] failed to delete old refresh_token mapping", { error: e });
+              console.warn(
+                "[token] failed to delete old refresh_token mapping",
+                { error: e },
+              );
             }
           }
           await setOrgIdForRefreshToken({
@@ -243,11 +258,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             orgId,
             ttlSeconds: REFRESH_TOKEN_ORG_TTL_SECONDS,
           });
-          console.debug("[token] updated refresh_token→org_id mapping (refresh)");
+          console.debug(
+            "[token] updated refresh_token→org_id mapping (refresh)",
+          );
         }
       }
     } catch (error) {
-      console.error("[token] failed to store refresh_token→org_id mapping", { error });
+      console.error("[token] failed to store refresh_token→org_id mapping", {
+        error,
+      });
       return createErrorResponse(
         "server_error",
         "Failed to store refresh token context",
@@ -263,7 +282,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         orgId,
         ttlSeconds: expiresIn,
       });
-      console.debug("[token] stored jwt→org_id mapping", { ttlSeconds: expiresIn });
+      console.debug("[token] stored jwt→org_id mapping", {
+        ttlSeconds: expiresIn,
+      });
     } catch (error) {
       console.error("[token] failed to store jwt→org_id mapping", { error });
       return createErrorResponse(
