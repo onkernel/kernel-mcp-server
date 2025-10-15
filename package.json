@@ -45,10 +45,12 @@
     "lucide-react": "^0.534.0",
     "next": "^15.3.5",
     "next-themes": "^0.4.4",
+    "playwright": "^1.49.1",
     "prettier": "^3.6.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "redis": "^5.6.0"
+    "redis": "^5.6.0",
+    "typescript": "^5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
@@ -57,7 +59,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.11",
-    "typescript": "^5"
+    "tailwindcss": "^4.1.11"
   }
 }

@@ -19,7 +19,8 @@ The Kernel MCP Server bridges AI assistants (like Claude, Cursor, or other MCP-c
 - 🌐 Launch and control headless Chromium sessions for web automation
 - 📊 Monitor deployments and track invocations
 - 🔍 Search Kernel documentation and inject context
-- 💻 Evaluate JavaScript and stream DOM snapshots
+- 💻 Execute arbitrary Playwright code against live browsers
+- 🎥 Automatically record video replays of browser automation
 
 **Open-source & fully-managed** — the complete codebase is available here, and we run the production instance so you don't need to deploy anything.
 
@@ -202,17 +203,21 @@ Configure these values wherever the tool expects MCP server settings.
 ## Tools
 
 ### Browser Automation
+
 - `create_browser` - Launch a new browser session with options (headless, stealth, persistence, timeout, profile)
 - `get_browser` - Get browser session information
 - `list_browsers` - List active browser sessions
 - `delete_browser` - Terminate a browser session
+- `execute_playwright_code` - Execute Playwright/TypeScript code in a fresh browser session with automatic video replay and cleanup
 
 ### Profile Management
+
 - `setup_profile` - Create or update browser profiles with guided setup process
 - `list_profiles` - List all available browser profiles
 - `delete_profile` - Delete browser profile permanently
 
 ### App Management
+
 - `list_apps` - List apps in your Kernel organization with optional filtering
 - `invoke_action` - Execute actions in Kernel apps
 - `get_deployment` - Get deployment status and logs
@@ -220,6 +225,7 @@ Configure these values wherever the tool expects MCP server settings.
 - `get_invocation` - Get action invocation details
 
 ### Documentation & Search
+
 - `search_docs` - Search Kernel platform documentation and guides
 
 ## Resources
@@ -255,6 +261,15 @@ Assistant: I'll execute your web-scraper action with reddit.com as the target.
 Human: Create a stealth browser session that I can reuse for testing login flows
 Assistant: I'll create a persistent, stealth-enabled browser that maintains state between uses.
 [Uses create_browser tool with persistence and stealth options]
+```
+
+### Execute Playwright code dynamically
+
+```
+Human: Go to example.com and get me the page title
+Assistant: I'll execute Playwright code to navigate to the site and retrieve the title.
+[Uses execute_playwright_code tool with code: "await page.goto('https://example.com'); return await page.title();"]
+Returns: { success: true, result: "Example Domain", replay_url: "https://..." }
 ```
 
 ### Set up browser profiles for authentication

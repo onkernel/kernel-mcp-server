@@ -47,7 +47,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Step 3: Redirect to organization selector if no org chosen yet
   if (!selectedOrgId) {
-    console.debug("[authorize] no org selected yet, redirecting to /select-org");
+    console.debug(
+      "[authorize] no org selected yet, redirecting to /select-org",
+    );
     const selectOrgUrl = new URL("/select-org", request.nextUrl.origin);
 
     // Pass all OAuth parameters to the org selector
@@ -148,7 +150,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         clientIdMasked: clientId?.slice(0, 4) + "...",
       });
     } catch (error) {
-      console.error("[authorize] failed to encode org_id into state", { error });
+      console.error("[authorize] failed to encode org_id into state", {
+        error,
+      });
       return NextResponse.json(
         {
           error: "server_error",
