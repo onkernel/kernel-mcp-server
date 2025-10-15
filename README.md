@@ -272,15 +272,6 @@ Assistant: I'll execute Playwright code to navigate to the site and retrieve the
 Returns: { success: true, result: "Example Domain", replay_url: "https://..." }
 ```
 
-**Tip:** Use `await page._snapshotForAI()` to get a comprehensive page snapshot:
-
-```
-Human: Visit github.com and tell me what's on the page
-Assistant: I'll navigate there and capture the page state.
-[Uses execute_playwright_code tool with code: "await page.goto('https://github.com'); return await page._snapshotForAI();"]
-Returns: { success: true, result: { title: "...", description: "...", text: "..." }, replay_url: "..." }
-```
-
 ### Set up browser profiles for authentication
 
 ```
