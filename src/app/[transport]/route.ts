@@ -1225,8 +1225,13 @@ The profile and all its associated authentication data have been permanently rem
           throw new Error("Failed to create browser session");
         }
 
-        // Start replay recording
-        replay = await client.browsers.replays.start(kernelBrowser.session_id);
+        // Start replay recording (only available on paid plans)
+        try {
+          replay = await client.browsers.replays.start(kernelBrowser.session_id);
+        } catch (replayError) {
+          console.log("Replay recording unavailable:", replayError);
+          replay = null;
+        }
 
         // Connect via CDP
         browser = await playwright.chromium.connectOverCDP(
