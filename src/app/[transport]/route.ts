@@ -15,6 +15,7 @@ import {
   ScriptTarget,
   transpileModule,
 } from "typescript";
+import { isValidJwtFormat } from "@/lib/auth-utils";
 
 // Mintlify Assistant API types
 interface MintlifySearchResult {
@@ -1227,7 +1228,9 @@ The profile and all its associated authentication data have been permanently rem
 
         // Start replay recording (only available on paid plans)
         try {
-          replay = await client.browsers.replays.start(kernelBrowser.session_id);
+          replay = await client.browsers.replays.start(
+            kernelBrowser.session_id,
+          );
         } catch (replayError) {
           console.log("Replay recording unavailable:", replayError);
           replay = null;
@@ -1399,17 +1402,31 @@ The profile and all its associated authentication data have been permanently rem
 
 async function handleAuthenticatedRequest(req: NextRequest): Promise<Response> {
   const authHeader = req.headers.get("Authorization");
-  let token: string | null = null;
-
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.substring(7);
-  }
-
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.substring(7).trim()
+    : null;
   if (!token) {
     return createAuthErrorResponse(
       "invalid_token",
       "Missing or invalid access token",
     );
+  }
+
+  if (!isValidJwtFormat(token)) {
+    const authHandler = withMcpAuth(
+      handler,
+      async () => ({
+        token,
+        scopes: ["apikey"],
+        clientId: "mcp-server",
+        extra: { userId: null, clerkToken: null },
+      }),
+      {
+        required: true,
+        resourceMetadataPath: "/.well-known/oauth-protected-resource/mcp",
+      },
+    );
+    return await authHandler(req);
   }
 
   try {
