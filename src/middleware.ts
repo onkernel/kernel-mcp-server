@@ -11,6 +11,11 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;
+  if (req.nextUrl.pathname.startsWith("/mcp")) {
+      if (req.method === "OPTIONS") return;
+      const authheader = req.headers.get("Authorization");
+      if (authheader?.startsWith("Bearer ")) return;
+    }
   await auth.protect();
 });
 

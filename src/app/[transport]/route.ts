@@ -1397,19 +1397,26 @@ The profile and all its associated authentication data have been permanently rem
   );
 });
 
+function looklikeJwt(token: string): boolean {
+  return token.split(".").length === 3 && token.split(".").every(part => part.length > 0);
+}
+
 async function handleAuthenticatedRequest(req: NextRequest): Promise<Response> {
   const authHeader = req.headers.get("Authorization");
-  let token: string | null = null;
-
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.substring(7);
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
+  if (!token){
+    return createAuthErrorResponse("invalid_token","Missing or invalid access token");
   }
 
-  if (!token) {
-    return createAuthErrorResponse(
-      "invalid_token",
-      "Missing or invalid access token",
+  if (!looklikeJwt(token)) {
+    const authHandler = withMcpAuth(
+      handler,
+      async () => ({
+        token, scopes: ["apikey"], clientId: "mcp-server", extra: { userId: "api-key", clerkToken: null },
+      }),
+      { required: true, resourceMetadataPath: "/.well-known/oauth-protected-resource/mcp" },
     );
+    return await authHandler(req);
   }
 
   try {
