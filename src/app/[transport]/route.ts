@@ -662,16 +662,41 @@ Production-ready platform for deploying and hosting browser automation code. Han
       profile_name: z
         .string()
         .describe(
-          "Name of an existing profile to load into this browser session. Use list_profiles to see available profiles. The profile will load all saved cookies, logins, and session data.",
+          "Name of an existing profile to load into this browser session. Use list_profiles to see available profiles. The profile will load all saved cookies, logins, and session data. Cannot be used with profile_id.",
+        )
+        .optional(),
+      profile_id: z
+        .string()
+        .describe(
+          "ID of an existing profile to load into this browser session. The profile will load all saved cookies, logins, and session data. Cannot be used with profile_name.",
         )
         .optional(),
     },
     async (
-      { headless, persistence_id, stealth, timeout_seconds, profile_name },
+      {
+        headless,
+        persistence_id,
+        stealth,
+        timeout_seconds,
+        profile_name,
+        profile_id,
+      },
       extra,
     ) => {
       if (!extra.authInfo) {
         throw new Error("Authentication required");
+      }
+
+      // Validate that only one of profile_name or profile_id is provided
+      if (profile_name && profile_id) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Cannot specify both profile_name and profile_id. Please provide only one.",
+            },
+          ],
+        };
       }
 
       const client = createKernelClient(extra.authInfo.token);
@@ -682,8 +707,12 @@ Production-ready platform for deploying and hosting browser automation code. Han
           ...(persistence_id && { persistence: { id: persistence_id } }),
           ...(stealth && { stealth: stealth }),
           ...(timeout_seconds && { timeout_seconds: timeout_seconds }),
-          ...(profile_name && {
-            profile: { name: profile_name, save_changes: false },
+          ...((profile_name || profile_id) && {
+            profile: {
+              ...(profile_name && { name: profile_name }),
+              ...(profile_id && { id: profile_id }),
+              save_changes: false,
+            },
           }),
           viewport: {
             width: 1920,
@@ -1099,12 +1128,42 @@ ${profiles
       profile_name: z
         .string()
         .describe(
-          "Name of the profile to delete. Use list_profiles to see available profiles.",
-        ),
+          "Name of the profile to delete. Use list_profiles to see available profiles. Cannot be used with profile_id.",
+        )
+        .optional(),
+      profile_id: z
+        .string()
+        .describe(
+          "ID of the profile to delete. Use list_profiles to see available profiles. Cannot be used with profile_name.",
+        )
+        .optional(),
     },
-    async ({ profile_name }, extra) => {
+    async ({ profile_name, profile_id }, extra) => {
       if (!extra.authInfo) {
         throw new Error("Authentication required");
+      }
+
+      // Validate that exactly one of profile_name or profile_id is provided
+      if (profile_name && profile_id) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Cannot specify both profile_name and profile_id. Please provide only one.",
+            },
+          ],
+        };
+      }
+
+      if (!profile_name && !profile_id) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Must specify either profile_name or profile_id.",
+            },
+          ],
+        };
       }
 
       const client = createKernelClient(extra.authInfo.token);
@@ -1113,15 +1172,18 @@ ${profiles
         // Verify profile exists first
         const existingProfiles = await client.profiles.list();
         const existingProfile = existingProfiles?.find(
-          (p) => p.name === profile_name,
+          (p) =>
+            (profile_name && p.name === profile_name) ||
+            (profile_id && p.id === profile_id),
         );
 
         if (!existingProfile) {
+          const identifier = profile_name || profile_id;
           return {
             content: [
               {
                 type: "text",
-                text: `❌ **Profile "${profile_name}" not found!**
+                text: `❌ **Profile "${identifier}" not found!**
 
 Use list_profiles to see available profiles.`,
               },
@@ -1129,14 +1191,17 @@ Use list_profiles to see available profiles.`,
           };
         }
 
-        // Delete the profile
-        await client.profiles.delete(profile_name);
+        // Delete the profile using either name or ID
+        const identifier = profile_name || profile_id;
+        if (identifier) {
+          await client.profiles.delete(identifier);
+        }
 
         return {
           content: [
             {
               type: "text",
-              text: `✅ **Profile "${profile_name}" deleted successfully!**
+              text: `✅ **Profile "${identifier}" deleted successfully!**
 
 The profile and all its associated authentication data have been permanently removed.`,
             },
