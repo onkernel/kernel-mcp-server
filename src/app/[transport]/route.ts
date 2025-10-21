@@ -685,6 +685,10 @@ Production-ready platform for deploying and hosting browser automation code. Han
           ...(profile_name && {
             profile: { name: profile_name, save_changes: false },
           }),
+          viewport: {
+            width: 1920,
+            height: 1080,
+          },
         });
 
         return {
@@ -972,6 +976,10 @@ To update the existing profile, call setup_profile again with update_existing: t
             name: profile_name,
             save_changes: true,
           },
+          viewport: {
+            width: 1920,
+            height: 1080,
+          },
         });
 
         // Step 3: Return instructions and live view URL
@@ -1220,6 +1228,10 @@ The profile and all its associated authentication data have been permanently rem
         // Create a new Kernel browser session
         kernelBrowser = await client.browsers.create({
           stealth: true,
+          viewport: {
+            width: 1920,
+            height: 1080,
+          },
         });
 
         if (!kernelBrowser || !kernelBrowser.cdp_ws_url) {
