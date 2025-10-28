@@ -6,15 +6,6 @@ import { verifyToken } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { Kernel } from "@onkernel/sdk";
 import { z } from "zod";
-import * as playwright from "playwright";
-import { createContext, Script } from "node:vm";
-import { createRequire } from "node:module";
-import {
-  ModuleKind,
-  ModuleResolutionKind,
-  ScriptTarget,
-  transpileModule,
-} from "typescript";
 import { isValidJwtFormat } from "@/lib/auth-utils";
 
 // Mintlify Assistant API types
@@ -714,10 +705,6 @@ Production-ready platform for deploying and hosting browser automation code. Han
               save_changes: false,
             },
           }),
-          viewport: {
-            width: 1920,
-            height: 1080,
-          },
         });
 
         return {
@@ -1005,10 +992,6 @@ To update the existing profile, call setup_profile again with update_existing: t
             name: profile_name,
             save_changes: true,
           },
-          viewport: {
-            width: 1920,
-            height: 1080,
-          },
         });
 
         // Step 3: Return instructions and live view URL
@@ -1282,7 +1265,6 @@ The profile and all its associated authentication data have been permanently rem
 
       const client = createKernelClient(extra.authInfo.token);
       let kernelBrowser;
-      let browser;
       let replay;
 
       try {
@@ -1293,13 +1275,9 @@ The profile and all its associated authentication data have been permanently rem
         // Create a new Kernel browser session
         kernelBrowser = await client.browsers.create({
           stealth: true,
-          viewport: {
-            width: 1920,
-            height: 1080,
-          },
         });
 
-        if (!kernelBrowser || !kernelBrowser.cdp_ws_url) {
+        if (!kernelBrowser || !kernelBrowser.session_id) {
           throw new Error("Failed to create browser session");
         }
 
@@ -1313,81 +1291,11 @@ The profile and all its associated authentication data have been permanently rem
           replay = null;
         }
 
-        // Connect via CDP
-        browser = await playwright.chromium.connectOverCDP(
-          kernelBrowser.cdp_ws_url,
+        // Execute Playwright code via Kernel API
+        const response = await client.browsers.playwright.execute(
+          kernelBrowser.session_id,
+          { code },
         );
-        const context = browser.contexts()[0] || (await browser.newContext());
-        const page = context.pages()[0] || (await context.newPage());
-
-        // Wrap user code in an async function
-        const tsSource = [
-          "export default async function __user_execute(page: any) {",
-          code,
-          "\n}",
-        ].join("\n");
-
-        // Transpile TypeScript to JavaScript
-        const transpiled = transpileModule(tsSource, {
-          compilerOptions: {
-            module: ModuleKind.CommonJS,
-            target: ScriptTarget.ES2019,
-            esModuleInterop: true,
-            moduleResolution: ModuleResolutionKind.Classic,
-            isolatedModules: true,
-            skipLibCheck: true,
-            noEmitOnError: false,
-          },
-          reportDiagnostics: true,
-        });
-
-        if (transpiled.diagnostics && transpiled.diagnostics.length > 0) {
-          const formatted = transpiled.diagnostics
-            .map((d) =>
-              d.messageText && typeof d.messageText === "object"
-                ? `${d.code}: ${d.messageText.messageText}`
-                : `${d.code}: ${String(d.messageText)}`,
-            )
-            .join("\n");
-          throw new Error(`TypeScript transpile error(s):\n${formatted}`);
-        }
-
-        const jsCode: string = transpiled.outputText;
-
-        // Create VM context with page and common globals
-        const require = createRequire(import.meta.url);
-        const sandbox: Record<string, unknown> = {
-          page,
-          console,
-          module: { exports: {} },
-          exports: {},
-          require,
-          process,
-          setTimeout,
-          setInterval,
-          clearTimeout,
-          clearInterval,
-        };
-
-        const vmContext = createContext(sandbox);
-        const script = new Script(jsCode, {
-          filename: "execute_playwright_code.user.ts",
-        });
-        script.runInContext(vmContext, { timeout: 60_000 });
-
-        // Extract the exported function
-        const fn =
-          (sandbox.module as { exports?: { default?: unknown } })?.exports
-            ?.default ||
-          (sandbox.exports as { default?: unknown })?.default ||
-          (sandbox.module as { exports?: unknown })?.exports;
-
-        if (typeof fn !== "function") {
-          throw new Error("Executed module did not export a callable function");
-        }
-
-        // Execute the function
-        const result = await fn(page);
 
         // Stop replay recording
         let replayUrl = null;
@@ -1396,16 +1304,10 @@ The profile and all its associated authentication data have been permanently rem
             await client.browsers.replays.stop(replay.replay_id, {
               id: kernelBrowser.session_id,
             });
-            // Get the replay URL
             replayUrl = replay.replay_view_url;
           } catch (replayError) {
             console.error("Error stopping replay:", replayError);
           }
-        }
-
-        // Clean up browser connection
-        if (browser) {
-          await browser.close();
         }
 
         // Delete the Kernel browser session
@@ -1419,8 +1321,11 @@ The profile and all its associated authentication data have been permanently rem
               type: "text",
               text: JSON.stringify(
                 {
-                  success: true,
-                  result,
+                  success: response.success,
+                  result: response.result,
+                  error: response.error,
+                  stdout: response.stdout,
+                  stderr: response.stderr,
                   replay_url: replayUrl,
                 },
                 null,
@@ -1445,9 +1350,6 @@ The profile and all its associated authentication data have been permanently rem
 
         // Clean up on error
         try {
-          if (browser) {
-            await browser.close();
-          }
           if (kernelBrowser?.session_id) {
             await client.browsers.deleteByID(kernelBrowser.session_id);
           }
@@ -1463,7 +1365,6 @@ The profile and all its associated authentication data have been permanently rem
                 {
                   success: false,
                   error: error instanceof Error ? error.message : String(error),
-                  stack: error instanceof Error ? error.stack : undefined,
                   replay_url: replayUrl,
                 },
                 null,
