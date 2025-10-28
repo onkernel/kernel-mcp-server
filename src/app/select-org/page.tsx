@@ -1,6 +1,5 @@
 'use client';
 
-import { OrganizationMembershipResource } from '@clerk/types';
 import { useAuth, useOrganizationList, useUser, CreateOrganization, UserButton } from '@clerk/nextjs';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, Suspense, useEffect, useRef } from 'react';
@@ -161,13 +160,13 @@ function SelectOrgContent(): React.ReactElement {
             className="flex flex-col gap-3 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
           >
             {(userMemberships?.data || user?.organizationMemberships)
-              ?.sort((a: OrganizationMembershipResource, b: OrganizationMembershipResource) => {
+              ?.sort((a, b) => {
                 // Put the currently active org first
                 if (a.organization.id === orgId) return -1;
                 if (b.organization.id === orgId) return 1;
                 return 0;
               })
-              ?.map((membership: OrganizationMembershipResource) => {
+              ?.map((membership) => {
               const isSelected = membership.organization.id === selectedOrgId;
               const isCurrentlyActive = membership.organization.id === orgId;
               return (
