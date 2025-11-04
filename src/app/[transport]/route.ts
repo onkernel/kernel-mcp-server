@@ -1376,6 +1376,139 @@ The profile and all its associated authentication data have been permanently rem
       }
     },
   );
+
+  // Network Diagnostics Tools (Draft skeletons)
+  // Capture Network Traffic Tool
+  server.tool(
+    "capture_network_traffic",
+    "Start a short‑lived capture of all network activity (requests and responses) for a specific Kernel browser session. Records URL, method, status, and resource type, with optional request/response headers and a size‑limited body. Start this before or during navigation/automation so you can later analyze what the page loaded.",
+    {
+      session_id: z.string(),
+      filter: z
+        .enum([
+          "all",
+          "XHR",
+          "fetch",
+          "document",
+          "script",
+          "stylesheet",
+          "image",
+        ])
+        .optional()
+        .default("all"),
+      include_headers: z.boolean().optional().default(true),
+      include_body: z.boolean().optional().default(false),
+      max_body_size: z.number().optional().default(100_000),
+    },
+    async (
+      { session_id, filter, include_headers, include_body, max_body_size },
+      extra,
+    ) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      // TODO: fetch session, connect via CDP, set up route handler(s)
+      // TODO: enforce caps, push entries to an in-memory buffer and persist to Redis `network:${session_id}` with TTL
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                monitoring_enabled: true,
+                session_id,
+                filter,
+                include_headers,
+                include_body,
+                max_body_size,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  );
+
+  // Block Resources Tool
+  server.tool(
+    "block_resources",
+    "Apply network‑level blocking rules to an active Kernel browser session. Prevent future requests by type (image/script/media/xhr) and/or by URL pattern to speed up scraping, reduce noise, or avoid trackers. Blocking affects subsequent requests within the same session.",
+    {
+      session_id: z.string(),
+      profile: z.enum(["aggressive", "balanced", "minimal"]).optional(),
+      block_types: z
+        .array(
+          z.enum([
+            "image",
+            "stylesheet",
+            "font",
+            "script",
+            "media",
+            "xhr",
+            "fetch",
+          ]),
+        )
+        .optional(),
+      block_patterns: z.array(z.string()).optional(),
+    },
+    async ({ session_id, profile, block_types, block_patterns }, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      // TODO: connect via CDP, page.route('**/*', (route) => route.abort()) and abort per rules
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                blocking_enabled: true,
+                session_id,
+                profile,
+                block_types,
+                block_patterns,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  );
+
+  // Analyze Network Performance Tool
+  server.tool(
+    "analyze_network_performance",
+    "Analyze previously captured network traffic for a session and return a human‑readable summary (counts, timings, largest/slowest calls) and candidate blocklist suggestions. Run this after using `capture_network_traffic` and exercising the target page.",
+    {
+      session_id: z.string(),
+      include_api_discovery: z.boolean().optional().default(true),
+    },
+    async ({ session_id, include_api_discovery }, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      // TODO: read Redis `network:${session_id}`, compute totals, slowest, possible analytics/ads, JSON API endpoints, and suggestions
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              { analyzed: true, session_id, include_api_discovery },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  );
 });
 
 async function handleAuthenticatedRequest(req: NextRequest): Promise<Response> {
