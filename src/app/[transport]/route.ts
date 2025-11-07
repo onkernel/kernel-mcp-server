@@ -1250,15 +1250,21 @@ The profile and all its associated authentication data have been permanently rem
   // Execute Playwright Code Tool
   server.tool(
     "execute_playwright_code",
-    "Execute Playwright/TypeScript automation code against a fresh Kernel browser session. Creates a new browser, connects via CDP, executes your TypeScript/Playwright code with a `page` object in scope, and returns the result with a video replay. The browser is automatically cleaned up after execution. Perfect for one-off automation tasks, web scraping, testing, and rapid prototyping without deploying a full app.",
+    "Execute Playwright/TypeScript automation code against a Kernel browser session. If session_id is provided, uses that existing browser; otherwise creates a new browser. Executes your TypeScript/Playwright code with a `page` object in scope, and returns the result with a video replay. When using a new browser, it is automatically cleaned up after execution. Perfect for one-off automation tasks, web scraping, testing, and rapid prototyping without deploying a full app.",
     {
       code: z
         .string()
         .describe(
           'Playwright/TypeScript code to execute. The code will have access to a Playwright `page` object and can use async/await. Example: "await page.goto(\\"https://example.com\\"); return await page.title();" Tip: Use `await page._snapshotForAI()` in return statements after other Playwright commands to get a comprehensive snapshot of the page state.',
         ),
+      session_id: z
+        .string()
+        .describe(
+          "Optional browser session ID to use. If provided, the code will execute against this existing browser session instead of creating a new one. The browser will NOT be deleted after execution when using an existing session.",
+        )
+        .optional(),
     },
-    async ({ code }, extra) => {
+    async ({ code, session_id }, extra) => {
       if (!extra.authInfo) {
         throw new Error("Authentication required");
       }
@@ -1266,19 +1272,27 @@ The profile and all its associated authentication data have been permanently rem
       const client = createKernelClient(extra.authInfo.token);
       let kernelBrowser;
       let replay;
+      const shouldCleanup = !session_id;
 
       try {
         if (!code || typeof code !== "string") {
           throw new Error("code is required and must be a string");
         }
 
-        // Create a new Kernel browser session
-        kernelBrowser = await client.browsers.create({
-          stealth: true,
-        });
+        // Use existing browser session or create a new one
+        if (session_id) {
+          kernelBrowser = await client.browsers.retrieve(session_id);
+          if (!kernelBrowser) {
+            throw new Error(`Browser session "${session_id}" not found`);
+          }
+        } else {
+          kernelBrowser = await client.browsers.create({
+            stealth: true,
+          });
 
-        if (!kernelBrowser || !kernelBrowser.session_id) {
-          throw new Error("Failed to create browser session");
+          if (!kernelBrowser || !kernelBrowser.session_id) {
+            throw new Error("Failed to create browser session");
+          }
         }
 
         // Start replay recording (only available on paid plans)
@@ -1310,8 +1324,8 @@ The profile and all its associated authentication data have been permanently rem
           }
         }
 
-        // Delete the Kernel browser session
-        if (kernelBrowser?.session_id) {
+        // Delete the Kernel browser session only if we created it
+        if (shouldCleanup && kernelBrowser?.session_id) {
           await client.browsers.deleteByID(kernelBrowser.session_id);
         }
 
@@ -1348,9 +1362,9 @@ The profile and all its associated authentication data have been permanently rem
           }
         }
 
-        // Clean up on error
+        // Clean up on error only if we created the browser
         try {
-          if (kernelBrowser?.session_id) {
+          if (shouldCleanup && kernelBrowser?.session_id) {
             await client.browsers.deleteByID(kernelBrowser.session_id);
           }
         } catch (cleanupError) {
