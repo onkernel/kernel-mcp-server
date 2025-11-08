@@ -1390,6 +1390,168 @@ The profile and all its associated authentication data have been permanently rem
       }
     },
   );
+
+  // Screenshot Tool
+  server.tool(
+    "screenshot",
+    "Capture a screenshot of the browser instance's host computer screen using Kernel's computer controls API. Returns a base64-encoded PNG image. Can capture the full screen or a specific region. Useful for visual verification, debugging, or understanding what's displayed on the screen.",
+    {
+      session_id: z
+        .string()
+        .describe(
+          "Unique identifier of the browser session to capture a screenshot from. You can get this from list_browsers or create_browser responses.",
+        ),
+      region: z
+        .object({
+          x: z
+            .number()
+            .describe("X coordinate of the top-left corner of the region to capture")
+            .optional(),
+          y: z
+            .number()
+            .describe("Y coordinate of the top-left corner of the region to capture")
+            .optional(),
+          width: z
+            .number()
+            .describe("Width of the region to capture in pixels")
+            .optional(),
+          height: z
+            .number()
+            .describe("Height of the region to capture in pixels")
+            .optional(),
+        })
+        .describe(
+          "Optional region to capture. If not provided, captures the full screen. All region parameters (x, y, width, height) must be provided together if specifying a region.",
+        )
+        .optional(),
+    },
+    async ({ session_id, region }, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      const client = createKernelClient(extra.authInfo.token);
+
+      try {
+        // Validate region if provided
+        let screenshotOptions:
+          | { region: { x: number; y: number; width: number; height: number } }
+          | undefined = undefined;
+
+        if (region) {
+          const hasAllRegionParams =
+            region.x !== undefined &&
+            region.y !== undefined &&
+            region.width !== undefined &&
+            region.height !== undefined;
+
+          if (!hasAllRegionParams) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Error: If specifying a region, all parameters (x, y, width, height) must be provided.",
+                },
+              ],
+            };
+          }
+
+          const x = region.x!;
+          const y = region.y!;
+          const width = region.width!;
+          const height = region.height!;
+
+          if (width <= 0 || height <= 0 || x < 0 || y < 0) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Error: Region dimensions must be positive and coordinates must be non-negative.",
+                },
+              ],
+            };
+          }
+
+          screenshotOptions = {
+            region: {
+              x,
+              y,
+              width,
+              height,
+            },
+          };
+        }
+
+        // Capture screenshot
+        const response = await client.browsers.computer.captureScreenshot(
+          session_id,
+          screenshotOptions,
+        );
+
+        const blob = await response.blob();
+        const buffer = Buffer.from(await blob.arrayBuffer());
+        const base64Image = buffer.toString("base64");
+
+        return {
+          content: [
+            {
+              type: "image",
+              data: base64Image,
+              mimeType: "image/png",
+            },
+            {
+              type: "text",
+              text: screenshotOptions?.region
+                ? `Screenshot captured successfully. Region: ${screenshotOptions.region.width}x${screenshotOptions.region.height} pixels at position (${screenshotOptions.region.x}, ${screenshotOptions.region.y})`
+                : "Screenshot captured successfully. Full screen capture.",
+            },
+          ],
+        };
+      } catch (error) {
+        // Handle 404 (session not found)
+        if (
+          error &&
+          typeof error === "object" &&
+          "status" in error &&
+          (error.status as number) === 404
+        ) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    success: false,
+                    error: "Browser session not found",
+                    session_id: session_id,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  success: false,
+                  error:
+                    error instanceof Error ? error.message : String(error),
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
+    },
+  );
 });
 
 async function handleAuthenticatedRequest(req: NextRequest): Promise<Response> {
