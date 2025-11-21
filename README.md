@@ -64,6 +64,8 @@ claude mcp add --transport http kernel https://mcp.onkernel.com/mcp
 
 ### Cursor
 
+### Automatic setup
+
 [![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=Kernel&config=eyJ1cmwiOiAiaHR0cHM6Ly9tY3Aub25rZXJuZWwuY29tL21jcCJ9)
 
 #### Manual setup
