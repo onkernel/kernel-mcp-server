@@ -328,3 +328,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 Built with ❤️ by the [Kernel Team](https://kernel.so)
+
+# Running this server locally
+
+```bash
+cp .env .env.local # Values for the .env.local file are in 1Password > DevEnvVars > MCP section 
+bun install
+bun run dev
+```
+
+This will start the server on port 3002.
