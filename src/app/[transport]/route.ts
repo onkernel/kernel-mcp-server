@@ -221,13 +221,13 @@ const handler = createMcpHandler((server) => {
 - **Live view** - Human-in-the-loop workflows with real-time browser viewing
 - **Replays** - Record and review past browser sessions as videos
 - **CDP integration** - Connect with Playwright, Puppeteer, or any CDP-compatible tool
-- **Profile persistence** - Save and reuse authentication cookies and login data across sessions
+- **Profiles** - Save and reuse authentication cookies and login data across sessions
 
 **Use cases:** Web scraping, form automation, testing, data extraction, user journey simulation, and any task requiring browser interaction.
 
-**Persistence options:**
-- **Session persistence** - Reuse browser state across hours/days
-- **Profile persistence** - Save and reuse authentication cookies and login data`,
+**Session options:**
+- **Timeout** - Configure browser timeout up to 72 hours for long-running sessions
+- **Profiles** - Save and reuse authentication cookies and login data`,
 
         apps: `## 🚀 Apps (Code Execution Platform)
 
@@ -255,7 +255,7 @@ const handler = createMcpHandler((server) => {
 **Core Concepts:**
 
 ### 🌐 Browsers (Sessions)
-Serverless browsers that run in isolated cloud environments. Each browser can automate any website with full CDP compatibility, live viewing, replay capabilities, and persistent profiles for authentication.
+Serverless browsers that run in isolated cloud environments. Each browser can automate any website with full CDP compatibility, live viewing, replay capabilities, and profiles for authentication.
 
 ### 🚀 Apps (Code Execution)
 Production-ready platform for deploying and hosting browser automation code. Handles auto-scaling, monitoring, and execution without infrastructure management.
@@ -638,16 +638,10 @@ Production-ready platform for deploying and hosting browser automation code. Han
           "If true, configures browser to avoid detection by anti-bot systems. Recommended for web scraping and automation.",
         )
         .optional(),
-      persistence_id: z
-        .string()
-        .describe(
-          "Unique string identifier for browser session persistence. If a browser with this ID exists, Kernel reuses it with all saved state (cookies, authentication, cache). If not found, creates a new browser with this ID for future reuse. Can be any string to match users, environments, websites, etc.",
-        )
-        .optional(),
       timeout_seconds: z
         .number()
         .describe(
-          "The number of seconds of inactivity before the browser session is terminated. Only applicable to non-persistent browsers. Activity includes CDP connections and live view connections. Defaults to 60 seconds.",
+          "The number of seconds of inactivity before the browser session is terminated. Activity includes CDP connections and live view connections. Defaults to 60 seconds. Maximum is 259200 (72 hours).",
         )
         .optional(),
       profile_name: z
@@ -664,14 +658,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
         .optional(),
     },
     async (
-      {
-        headless,
-        persistence_id,
-        stealth,
-        timeout_seconds,
-        profile_name,
-        profile_id,
-      },
+      { headless, stealth, timeout_seconds, profile_name, profile_id },
       extra,
     ) => {
       if (!extra.authInfo) {
@@ -695,7 +682,6 @@ Production-ready platform for deploying and hosting browser automation code. Han
       try {
         const kernelBrowser = await client.browsers.create({
           ...(headless && { headless: headless }),
-          ...(persistence_id && { persistence: { id: persistence_id } }),
           ...(stealth && { stealth: stealth }),
           ...(timeout_seconds && { timeout_seconds: timeout_seconds }),
           ...((profile_name || profile_id) && {
