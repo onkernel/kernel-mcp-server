@@ -206,7 +206,7 @@ Configure these values wherever the tool expects MCP server settings.
 
 ### Browser Automation
 
-- `create_browser` - Launch a new browser session with options (headless, stealth, persistence, timeout, profile)
+- `create_browser` - Launch a new browser session with options (headless, stealth, timeout, profile)
 - `get_browser` - Get browser session information
 - `list_browsers` - List active browser sessions
 - `delete_browser` - Terminate a browser session
@@ -255,14 +255,6 @@ Configure these values wherever the tool expects MCP server settings.
 Human: Run my web-scraper app to get data from reddit.com
 Assistant: I'll execute your web-scraper action with reddit.com as the target.
 [Uses invoke_action tool to run your deployed app in the cloud]
-```
-
-### Create persistent browser sessions
-
-```
-Human: Create a stealth browser session that I can reuse for testing login flows
-Assistant: I'll create a persistent, stealth-enabled browser that maintains state between uses.
-[Uses create_browser tool with persistence and stealth options]
 ```
 
 ### Execute Playwright code dynamically
@@ -332,7 +324,7 @@ Built with ❤️ by the [Kernel Team](https://kernel.so)
 # Running this server locally
 
 ```bash
-cp .env .env.local # Values for the .env.local file are in 1Password > DevEnvVars > MCP section 
+cp .env .env.local # Values for the .env.local file are in 1Password > DevEnvVars > MCP section
 bun install
 bun run dev
 ```
