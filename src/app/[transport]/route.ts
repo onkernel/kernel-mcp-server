@@ -1236,7 +1236,7 @@ The profile and all its associated authentication data have been permanently rem
   // Take Screenshot Tool
   server.tool(
     "take_screenshot",
-    "Capture a screenshot of the current browser page. Returns a base64-encoded PNG image. Optionally capture a specific region of the page by providing x, y, width, and height coordinates. Note: Computer control actions are only available for browsers created after October 15, 2025.",
+    "Capture a screenshot of the current browser page. Returns a base64-encoded PNG image. Optionally capture a specific region of the page by providing x, y, width, and height coordinates.",
     {
       session_id: z
         .string()
