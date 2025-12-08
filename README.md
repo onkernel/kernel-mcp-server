@@ -211,6 +211,7 @@ Configure these values wherever the tool expects MCP server settings.
 - `list_browsers` - List active browser sessions
 - `delete_browser` - Terminate a browser session
 - `execute_playwright_code` - Execute Playwright/TypeScript code in a fresh browser session with automatic video replay and cleanup
+- `take_screenshot` - Capture a screenshot of the current browser page, optionally specifying a region
 
 ### Profile Management
 
