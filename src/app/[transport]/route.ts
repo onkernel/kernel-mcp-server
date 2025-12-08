@@ -1233,6 +1233,99 @@ The profile and all its associated authentication data have been permanently rem
     },
   );
 
+  // Take Screenshot Tool
+  server.tool(
+    "take_screenshot",
+    "Capture a screenshot of the current browser page. Returns a base64-encoded PNG image. Optionally capture a specific region of the page by providing x, y, width, and height coordinates.",
+    {
+      session_id: z
+        .string()
+        .describe(
+          "Unique identifier of the browser session to capture a screenshot from. You can get this from list_browsers or create_browser responses.",
+        ),
+      x: z
+        .number()
+        .describe(
+          "Optional horizontal starting position for region capture. Must be provided together with y, width, and height.",
+        )
+        .optional(),
+      y: z
+        .number()
+        .describe(
+          "Optional vertical starting position for region capture. Must be provided together with x, width, and height.",
+        )
+        .optional(),
+      width: z
+        .number()
+        .describe(
+          "Optional width of the capture area. Must be provided together with x, y, and height.",
+        )
+        .optional(),
+      height: z
+        .number()
+        .describe(
+          "Optional height of the capture area. Must be provided together with x, y, and width.",
+        )
+        .optional(),
+    },
+    async ({ session_id, x, y, width, height }, extra) => {
+      if (!extra.authInfo) {
+        throw new Error("Authentication required");
+      }
+
+      // Validate region parameters - either all or none must be provided
+      const hasRegion = x !== undefined || y !== undefined || width !== undefined || height !== undefined;
+      const hasCompleteRegion = x !== undefined && y !== undefined && width !== undefined && height !== undefined;
+
+      if (hasRegion && !hasCompleteRegion) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: When specifying a region, all four parameters (x, y, width, height) must be provided.",
+            },
+          ],
+        };
+      }
+
+      const client = createKernelClient(extra.authInfo.token);
+
+      try {
+        const options = hasCompleteRegion
+          ? { region: { x: x!, y: y!, width: width!, height: height! } }
+          : undefined;
+
+        const response = await client.browsers.computer.captureScreenshot(
+          session_id,
+          options,
+        );
+
+        const blob = await response.blob();
+        const buffer = Buffer.from(await blob.arrayBuffer());
+        const base64Image = buffer.toString("base64");
+
+        return {
+          content: [
+            {
+              type: "image",
+              data: base64Image,
+              mimeType: "image/png",
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error capturing screenshot: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    },
+  );
+
   // Execute Playwright Code Tool
   server.tool(
     "execute_playwright_code",
