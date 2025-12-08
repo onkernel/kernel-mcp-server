@@ -1329,7 +1329,7 @@ The profile and all its associated authentication data have been permanently rem
   // Execute Playwright Code Tool
   server.tool(
     "execute_playwright_code",
-    "Execute Playwright/TypeScript automation code against a Kernel browser session. If session_id is provided, uses that existing browser; otherwise creates a new browser. Executes your TypeScript/Playwright code with a `page` object in scope, and returns the result with a video replay. When using a new browser, it is automatically cleaned up after execution. Perfect for one-off automation tasks, web scraping, testing, and rapid prototyping without deploying a full app.",
+    "Execute Playwright/TypeScript automation code against a Kernel browser session. If session_id is provided, uses that existing browser; otherwise creates a new browser. Executes your TypeScript/Playwright code with a `page` object in scope, and returns the result with a video replay. When using a new browser, it is automatically cleaned up after execution. Perfect for one-off automation tasks, web scraping, testing, and rapid prototyping without deploying a full app. IMPORTANT: Do not use page.screenshot() or any screenshot methods in your code. If you need a screenshot, use the dedicated take_screenshot tool instead.",
     {
       code: z
         .string()
