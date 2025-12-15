@@ -1274,8 +1274,16 @@ The profile and all its associated authentication data have been permanently rem
       }
 
       // Validate region parameters - either all or none must be provided
-      const hasRegion = x !== undefined || y !== undefined || width !== undefined || height !== undefined;
-      const hasCompleteRegion = x !== undefined && y !== undefined && width !== undefined && height !== undefined;
+      const hasRegion =
+        x !== undefined ||
+        y !== undefined ||
+        width !== undefined ||
+        height !== undefined;
+      const hasCompleteRegion =
+        x !== undefined &&
+        y !== undefined &&
+        width !== undefined &&
+        height !== undefined;
 
       if (hasRegion && !hasCompleteRegion) {
         return {
