@@ -292,7 +292,7 @@ Production-ready platform for deploying and hosting browser automation code. Han
       session_id: z
         .string()
         .describe(
-          "The browser session ID to debug (e.g., 'nk5y23a3b74f23wvzthe2ksv')",
+          "The browser session ID to debug (e.g., 'ses_abc123example456xyz')",
         ),
       issue_description: z
         .string()
