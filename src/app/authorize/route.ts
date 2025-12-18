@@ -14,7 +14,9 @@ export async function OPTIONS(): Promise<NextResponse> {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const searchParams = request.nextUrl.searchParams;
+  // Use raw URL to avoid Next.js searchParams normalization (which converts 127.0.0.1 to localhost)
+  const rawUrl = new URL(request.url);
+  const searchParams = rawUrl.searchParams;
 
   // Step 1: Extract and validate required OAuth parameters
   const clientId = searchParams.get("client_id");
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     hasClientId: Boolean(clientId),
     hasSelectedOrgId: Boolean(selectedOrgId),
     hasState: Boolean(originalState),
+    rawUrl: request.url,
   });
 
   // Step 2: Validate minimum required parameters
