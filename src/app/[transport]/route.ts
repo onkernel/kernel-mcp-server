@@ -308,145 +308,63 @@ Production-ready platform for deploying and hosting browser automation code. Han
 
 ---
 
-## Step 1: Verify Session Status
+## Tools
 
-First, check if the browser session is still active and get its configuration:
+**Use the Kernel CLI for debugging.** It provides full access to browser sessions, VM logs, and process execution.
 
+Install: \`brew install onkernel/tap/kernel\` or \`npm install -g @onkernel/cli\`
+
+**Explore available commands recursively:**
+\`\`\`bash
+kernel --help
+kernel browsers --help
+kernel browsers fs --help
+kernel browsers process --help
+kernel browsers playwright --help
 \`\`\`
-Use get_browser tool with session_id: "${session_id}"
-\`\`\`
 
-This will show you:
-- Session ID, creation time, timeout settings
-- Headless/stealth mode configuration
-- Viewport settings
-- Live view URL (for visual inspection)
-- CDP WebSocket URL
-- Profile information (if any)
+**MCP Exception:** The \`take_screenshot\` MCP tool is useful since it returns images directly to the agent.
 
 ---
 
-## Step 2: Visual Inspection
+## Key CLI Commands for Debugging
 
-Take a screenshot to see the current browser state:
-
-\`\`\`
-Use take_screenshot tool with session_id: "${session_id}"
-\`\`\`
-
-This helps identify:
-- Error pages (like chrome-error://chromewebdata/)
-- Loading issues
-- Unexpected page content
-- Visual glitches
-
----
-
-## Step 3: Check Current Page State
-
-Execute Playwright code to get detailed page information:
-
-\`\`\`typescript
-// Get current URL and page content
-const errorText = await page.evaluate(() => document.body?.innerText || '');
-return { 
-  url: page.url(), 
-  title: await page.title(),
-  errorText: errorText.substring(0, 1000) 
-};
-\`\`\`
-
-This reveals:
-- If browser is on an error page (chrome-error://chromewebdata/)
-- Actual error messages displayed
-- Current navigation state
-
----
-
-## Step 4: Check VM Logs (Advanced)
-
-For deeper debugging, you can check the browser's internal logs. This requires shell access via the Kernel CLI:
-
-### Supervisor Logs (service health)
+### Check session status
 \`\`\`bash
-kernel browsers fs read-file <session_id> --path /var/log/supervisord.log
+kernel browsers get ${session_id}
 \`\`\`
 
-Shows if all services started correctly:
-- xorg (display server)
-- mutter (window manager)
-- chromium (browser)
-- neko (live view)
-- kernel-images-api (internal API)
-
-### Chromium Logs (browser errors)
+### Take a screenshot (or use MCP take_screenshot tool)
 \`\`\`bash
-kernel browsers fs read-file <session_id> --path /var/log/supervisord/chromium
+kernel browsers screenshot ${session_id}
 \`\`\`
 
-Common issues to look for:
-- GPU/Vulkan errors (expected in VM - not critical)
-- GCM deprecated endpoint errors (harmless)
-- Network errors (ERR codes)
-- Console errors from pages
-
-### Kernel Images API Logs (internal API)
+### Execute Playwright code
 \`\`\`bash
-kernel browsers fs read-file <session_id> --path /var/log/supervisord/kernel-images-api
+kernel browsers playwright execute ${session_id} "return { url: page.url(), title: await page.title() }"
 \`\`\`
 
-Shows:
-- API request/response status
-- Resolution changes
-- WebSocket connections
-- Screenshot/recording activity
-
-### Neko Logs (live view/WebRTC)
+### Read VM log files
 \`\`\`bash
-kernel browsers fs read-file <session_id> --path /var/log/supervisord/neko
+kernel browsers fs read-file ${session_id} --path /var/log/supervisord.log
+kernel browsers fs read-file ${session_id} --path /var/log/supervisord/chromium
+kernel browsers fs read-file ${session_id} --path /var/log/supervisord/neko
 \`\`\`
 
-Shows:
-- WebRTC connection status
-- Video pipeline status
-- Session connections/disconnections
-
----
-
-## Step 5: Test Network Connectivity
-
-If you suspect network issues, test connectivity from inside the VM:
-
-### Test HTTP/1.1 to a URL
+### List files in the VM
 \`\`\`bash
-kernel browsers process exec <session_id> -- curl -I --http1.1 https://example.com
+kernel browsers fs ls ${session_id} --path /var/log
 \`\`\`
 
-### Test HTTP/2 to a URL
+### Execute commands inside the VM
 \`\`\`bash
-kernel browsers process exec <session_id> -- curl -I --http2 https://example.com
+kernel browsers process exec ${session_id} -- curl -I https://example.com
+kernel browsers process exec ${session_id} -- cat /etc/resolv.conf
 \`\`\`
 
-### Test with verbose output (TLS details)
+### Check cookies via Playwright
 \`\`\`bash
-kernel browsers process exec <session_id> -- curl -v https://example.com
-\`\`\`
-
-### Check DNS resolution
-\`\`\`bash
-kernel browsers process exec <session_id> -- cat /etc/resolv.conf
-\`\`\`
-
----
-
-## Step 6: Check Browser Cookies/State
-
-\`\`\`typescript
-const cookies = await page.context().cookies();
-return { 
-  cookieCount: cookies.length, 
-  domains: [...new Set(cookies.map(c => c.domain))] 
-};
+kernel browsers playwright execute ${session_id} "const cookies = await page.context().cookies(); return { count: cookies.length, domains: [...new Set(cookies.map(c => c.domain))] }"
 \`\`\`
 
 ---
