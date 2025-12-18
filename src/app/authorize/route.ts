@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setOrgIdForClientId } from "../../lib/redis";
 import { SHARED_CLIENT_IDS } from "../../lib/const";
+import { normalizeLocalhostUri } from "../../lib/auth-utils";
 
 export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
@@ -177,12 +178,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const clerkAuthUrl = new URL(`https://${clerkDomain}/oauth/authorize`);
 
   // Pass through all original parameters except our custom org_id
-  // Note: We don't normalize redirect_uri here. New registrations include both
-  // localhost and 127.0.0.1 forms, so either will match. Existing registrations
-  // will continue to work as long as clients use the same form they registered with.
+  // Normalize redirect_uri to ensure consistency between authorization and token exchange
+  // New registrations include both forms, and normalization ensures clients can use either form
   searchParams.forEach((value, key) => {
     if (key !== "org_id") {
-      clerkAuthUrl.searchParams.set(key, value);
+      if (key === "redirect_uri") {
+        const normalizedUri = normalizeLocalhostUri(value);
+        clerkAuthUrl.searchParams.set(key, normalizedUri);
+      } else {
+        clerkAuthUrl.searchParams.set(key, value);
+      }
     }
   });
 
