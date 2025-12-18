@@ -81,10 +81,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const grantType = body.get("grant_type") as string;
-    console.debug("[token] start", { grantType });
+    const redirectUri = body.get("redirect_uri") as string | null;
+    const clientId = body.get("client_id") as string | null;
+    console.debug("[token] start", {
+      grantType,
+      redirectUri,
+      clientIdMasked: clientId?.slice(0, 4) + "...",
+    });
 
     // Validate client_id (required for both flows)
-    const clientId = body.get("client_id") as string | null;
     if (!clientId) {
       console.debug("[token] missing client_id");
       return createErrorResponse(
