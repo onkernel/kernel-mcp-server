@@ -16,21 +16,6 @@ export async function OPTIONS(): Promise<NextResponse> {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
 
-  // Debug: check various URL sources to find the original value
-  const xForwardedHost = request.headers.get("x-forwarded-host");
-  const xUrl = request.headers.get("x-url");
-  const xOriginalUrl = request.headers.get("x-original-url");
-  const xVercelProxyPath = request.headers.get("x-vercel-proxy-signature-ts");
-  
-  console.debug("[authorize] headers check", {
-    xForwardedHost,
-    xUrl,
-    xOriginalUrl,
-    requestUrl: request.url,
-    nextUrl: request.nextUrl.toString(),
-    allHeaders: Object.fromEntries(request.headers.entries()),
-  });
-
   // Step 1: Extract and validate required OAuth parameters
   const clientId = searchParams.get("client_id");
   const selectedOrgId = searchParams.get("org_id");
@@ -62,10 +47,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Step 3: Redirect to organization selector if no org chosen yet
   if (!selectedOrgId) {
-    const redirectUri = searchParams.get("redirect_uri");
     console.debug(
       "[authorize] no org selected yet, redirecting to /select-org",
-      { redirectUri },
     );
     const selectOrgUrl = new URL("/select-org", request.nextUrl.origin);
 
@@ -74,10 +57,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       selectOrgUrl.searchParams.set(key, value);
     });
 
-    const finalUrl = selectOrgUrl.toString();
-    console.debug("[authorize] redirect URL built", { finalUrl });
-
-    return NextResponse.redirect(finalUrl);
+    return NextResponse.redirect(selectOrgUrl.toString());
   }
 
   // Step 4: Validate server configuration
