@@ -6,6 +6,7 @@ import {
 } from "@/lib/redis";
 import { resolveOrgId } from "@/lib/org-utils";
 import { REFRESH_TOKEN_ORG_TTL_SECONDS } from "@/lib/const";
+import { normalizeLocalhostUri } from "@/lib/auth-utils";
 
 export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
@@ -74,9 +75,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     // Step 3: Prepare parameters for Clerk token exchange
+    // Normalize redirect_uri to match Vercel's query param normalization (127.0.0.1 → localhost)
     const params = new URLSearchParams();
     for (const [key, value] of body.entries()) {
-      params.append(key, value.toString());
+      if (key === "redirect_uri") {
+        params.append(key, normalizeLocalhostUri(value.toString()));
+      } else {
+        params.append(key, value.toString());
+      }
     }
 
     const grantType = body.get("grant_type") as string;
@@ -150,7 +156,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
     if (!clerkTokenResponse.ok) {
-      const errorData = await clerkTokenResponse.text();
       console.error("[token] clerk token exchange failed");
       return createErrorResponse(
         "invalid_grant",
