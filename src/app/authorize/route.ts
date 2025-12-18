@@ -179,6 +179,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Pass through all original parameters except our custom org_id
   searchParams.forEach((value, key) => {
     if (key !== "org_id") {
+      // Normalize localhost to 127.0.0.1 in redirect_uri to match registered URIs
+      // This handles cases where clients register with 127.0.0.1 but use localhost in auth requests
+      if (key === "redirect_uri") {
+        try {
+          const url = new URL(value);
+          if (url.hostname === "localhost") {
+            url.hostname = "127.0.0.1";
+            clerkAuthUrl.searchParams.set(key, url.toString());
+            return;
+          }
+        } catch {
+          // If URL parsing fails, use original value
+        }
+      }
       clerkAuthUrl.searchParams.set(key, value);
     }
   });
