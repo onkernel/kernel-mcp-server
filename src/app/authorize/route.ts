@@ -14,9 +14,22 @@ export async function OPTIONS(): Promise<NextResponse> {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  // Use raw URL to avoid Next.js searchParams normalization (which converts 127.0.0.1 to localhost)
-  const rawUrl = new URL(request.url);
-  const searchParams = rawUrl.searchParams;
+  const searchParams = request.nextUrl.searchParams;
+
+  // Debug: check various URL sources to find the original value
+  const xForwardedHost = request.headers.get("x-forwarded-host");
+  const xUrl = request.headers.get("x-url");
+  const xOriginalUrl = request.headers.get("x-original-url");
+  const xVercelProxyPath = request.headers.get("x-vercel-proxy-signature-ts");
+  
+  console.debug("[authorize] headers check", {
+    xForwardedHost,
+    xUrl,
+    xOriginalUrl,
+    requestUrl: request.url,
+    nextUrl: request.nextUrl.toString(),
+    allHeaders: Object.fromEntries(request.headers.entries()),
+  });
 
   // Step 1: Extract and validate required OAuth parameters
   const clientId = searchParams.get("client_id");
@@ -27,7 +40,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     hasClientId: Boolean(clientId),
     hasSelectedOrgId: Boolean(selectedOrgId),
     hasState: Boolean(originalState),
-    rawUrl: request.url,
   });
 
   // Step 2: Validate minimum required parameters
