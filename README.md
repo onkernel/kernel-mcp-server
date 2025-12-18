@@ -335,11 +335,13 @@ Assistant: Perfect! I'll close the browser session and save your profile.
 
 ### Debug a browser session
 
+> **Note:** Attach the `debug-browser-session` prompt to your conversation first, then ask for help debugging.
+
 ```
-Human: My browser session abc123 is showing ERR_HTTP2_PROTOCOL_ERROR, can you help debug?
-Assistant: I'll use the debug-browser-session prompt to systematically troubleshoot this.
-[Uses debug-browser-session prompt with session_id: "abc123" and issue_description: "ERR_HTTP2_PROTOCOL_ERROR"]
-[Follows the debugging guide: checks session status, takes screenshot, inspects page state, tests network connectivity]
+Human: [Attaches debug-browser-session prompt with session_id and issue_description]
+       Help me debug this browser session.
+Assistant: [Follows the debugging guide from the prompt: uses Kernel CLI to check session status, 
+            read VM logs, test network connectivity, and diagnose issues]
 ```
 
 ## 🤝 Contributing
