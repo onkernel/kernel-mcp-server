@@ -47,8 +47,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Step 3: Redirect to organization selector if no org chosen yet
   if (!selectedOrgId) {
+    const redirectUri = searchParams.get("redirect_uri");
     console.debug(
       "[authorize] no org selected yet, redirecting to /select-org",
+      { redirectUri },
     );
     const selectOrgUrl = new URL("/select-org", request.nextUrl.origin);
 
@@ -57,7 +59,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       selectOrgUrl.searchParams.set(key, value);
     });
 
-    return NextResponse.redirect(selectOrgUrl.toString());
+    const finalUrl = selectOrgUrl.toString();
+    console.debug("[authorize] redirect URL built", { finalUrl });
+
+    return NextResponse.redirect(finalUrl);
   }
 
   // Step 4: Validate server configuration
