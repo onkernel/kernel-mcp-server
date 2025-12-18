@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setOrgIdForClientId } from "../../lib/redis";
 import { SHARED_CLIENT_IDS } from "../../lib/const";
+import { normalizeLocalhostUri } from "../../lib/auth-utils";
 
 export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
@@ -182,16 +183,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Normalize localhost to 127.0.0.1 in redirect_uri to match registered URIs
       // This handles cases where clients register with 127.0.0.1 but use localhost in auth requests
       if (key === "redirect_uri") {
-        try {
-          const url = new URL(value);
-          if (url.hostname === "localhost") {
-            url.hostname = "127.0.0.1";
-            clerkAuthUrl.searchParams.set(key, url.toString());
-            return;
-          }
-        } catch {
-          // If URL parsing fails, use original value
-        }
+        const normalizedUri = normalizeLocalhostUri(value);
+        clerkAuthUrl.searchParams.set(key, normalizedUri);
+        return;
       }
       clerkAuthUrl.searchParams.set(key, value);
     }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
+import { normalizeLocalhostUri } from "../../lib/auth-utils";
 
 // Custom registration endpoint needed because Clerk doesn't support custom scopes
 // We only want "openid" scope instead of Clerk's default email/profile scopes
@@ -108,18 +109,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Normalize localhost to 127.0.0.1 for consistency
   // This ensures that clients can register with either localhost or 127.0.0.1
   // and authorization requests will match regardless of which form is used
-  const normalizedRedirectUris = redirect_uris.map((uri) => {
-    try {
-      const url = new URL(uri);
-      if (url.hostname === "localhost") {
-        url.hostname = "127.0.0.1";
-        return url.toString();
-      }
-      return uri;
-    } catch {
-      return uri;
-    }
-  });
+  const normalizedRedirectUris = redirect_uris.map(normalizeLocalhostUri);
 
   try {
     // Register the OAuth application with Clerk
