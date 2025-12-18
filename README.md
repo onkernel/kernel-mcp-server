@@ -293,6 +293,7 @@ Configure these values wherever the tool expects MCP server settings.
 ## Prompts
 
 - `kernel-concepts` - Get explanations of Kernel's core concepts (browsers, apps, overview)
+- `debug-browser-session` - Get a comprehensive debugging guide for troubleshooting browser sessions (VM issues, network problems, Chrome errors)
 
 ## Troubleshooting
 
@@ -330,6 +331,15 @@ Assistant: I'll create a profile and guide you through the setup process.
 Human: I'm done setting up my accounts
 Assistant: Perfect! I'll close the browser session and save your profile.
 [Uses delete_browser tool to save profile]
+```
+
+### Debug a browser session
+
+```
+Human: My browser session abc123 is showing ERR_HTTP2_PROTOCOL_ERROR, can you help debug?
+Assistant: I'll use the debug-browser-session prompt to systematically troubleshoot this.
+[Uses debug-browser-session prompt with session_id: "abc123" and issue_description: "ERR_HTTP2_PROTOCOL_ERROR"]
+[Follows the debugging guide: checks session status, takes screenshot, inspects page state, tests network connectivity]
 ```
 
 ## 🤝 Contributing

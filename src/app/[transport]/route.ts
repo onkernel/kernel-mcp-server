@@ -284,6 +284,256 @@ Production-ready platform for deploying and hosting browser automation code. Han
     },
   );
 
+  // Debug Browser Session Prompt
+  server.prompt(
+    "debug-browser-session",
+    "Comprehensive debugging guide for troubleshooting Kernel browser sessions. Provides a systematic approach to diagnose VM issues, network problems, Chrome errors, and more.",
+    {
+      session_id: z
+        .string()
+        .describe(
+          "The browser session ID to debug (e.g., 'nk5y23a3b74f23wvzthe2ksv')",
+        ),
+      issue_description: z
+        .string()
+        .describe(
+          "Description of the issue you're experiencing (e.g., 'ERR_HTTP2_PROTOCOL_ERROR when navigating to a specific site', 'browser not responding', 'page not loading')",
+        ),
+    },
+    async ({ session_id, issue_description }) => {
+      const debugGuide = `# 🔍 Browser Session Debugging Guide
+
+**Session ID:** \`${session_id}\`
+**Reported Issue:** ${issue_description}
+
+---
+
+## Step 1: Verify Session Status
+
+First, check if the browser session is still active and get its configuration:
+
+\`\`\`
+Use get_browser tool with session_id: "${session_id}"
+\`\`\`
+
+This will show you:
+- Session ID, creation time, timeout settings
+- Headless/stealth mode configuration
+- Viewport settings
+- Live view URL (for visual inspection)
+- CDP WebSocket URL
+- Profile information (if any)
+
+---
+
+## Step 2: Visual Inspection
+
+Take a screenshot to see the current browser state:
+
+\`\`\`
+Use take_screenshot tool with session_id: "${session_id}"
+\`\`\`
+
+This helps identify:
+- Error pages (like chrome-error://chromewebdata/)
+- Loading issues
+- Unexpected page content
+- Visual glitches
+
+---
+
+## Step 3: Check Current Page State
+
+Execute Playwright code to get detailed page information:
+
+\`\`\`typescript
+// Get current URL and page content
+const errorText = await page.evaluate(() => document.body?.innerText || '');
+return { 
+  url: page.url(), 
+  title: await page.title(),
+  errorText: errorText.substring(0, 1000) 
+};
+\`\`\`
+
+This reveals:
+- If browser is on an error page (chrome-error://chromewebdata/)
+- Actual error messages displayed
+- Current navigation state
+
+---
+
+## Step 4: Check VM Logs (Advanced)
+
+For deeper debugging, you can check the browser's internal logs. This requires shell access via the Kernel CLI:
+
+### Supervisor Logs (service health)
+\`\`\`bash
+kernel browsers fs read-file <session_id> --path /var/log/supervisord.log
+\`\`\`
+
+Shows if all services started correctly:
+- xorg (display server)
+- mutter (window manager)
+- chromium (browser)
+- neko (live view)
+- kernel-images-api (internal API)
+
+### Chromium Logs (browser errors)
+\`\`\`bash
+kernel browsers fs read-file <session_id> --path /var/log/supervisord/chromium
+\`\`\`
+
+Common issues to look for:
+- GPU/Vulkan errors (expected in VM - not critical)
+- GCM deprecated endpoint errors (harmless)
+- Network errors (ERR codes)
+- Console errors from pages
+
+### Kernel Images API Logs (internal API)
+\`\`\`bash
+kernel browsers fs read-file <session_id> --path /var/log/supervisord/kernel-images-api
+\`\`\`
+
+Shows:
+- API request/response status
+- Resolution changes
+- WebSocket connections
+- Screenshot/recording activity
+
+### Neko Logs (live view/WebRTC)
+\`\`\`bash
+kernel browsers fs read-file <session_id> --path /var/log/supervisord/neko
+\`\`\`
+
+Shows:
+- WebRTC connection status
+- Video pipeline status
+- Session connections/disconnections
+
+---
+
+## Step 5: Test Network Connectivity
+
+If you suspect network issues, test connectivity from inside the VM:
+
+### Test HTTP/1.1 to a URL
+\`\`\`bash
+kernel browsers process exec <session_id> -- curl -I --http1.1 https://example.com
+\`\`\`
+
+### Test HTTP/2 to a URL
+\`\`\`bash
+kernel browsers process exec <session_id> -- curl -I --http2 https://example.com
+\`\`\`
+
+### Test with verbose output (TLS details)
+\`\`\`bash
+kernel browsers process exec <session_id> -- curl -v https://example.com
+\`\`\`
+
+### Check DNS resolution
+\`\`\`bash
+kernel browsers process exec <session_id> -- cat /etc/resolv.conf
+\`\`\`
+
+---
+
+## Step 6: Check Browser Cookies/State
+
+\`\`\`typescript
+const cookies = await page.context().cookies();
+return { 
+  cookieCount: cookies.length, 
+  domains: [...new Set(cookies.map(c => c.domain))] 
+};
+\`\`\`
+
+---
+
+## Common Issues & Solutions
+
+### Network Errors (ERR_HTTP2_PROTOCOL_ERROR, ERR_CONNECTION_RESET, etc.)
+
+**Bot detection is a common cause of network errors.** Many sites use CDNs like Cloudflare, Imperva, or Akamai that fingerprint browsers and block automation.
+
+**Signs of bot detection:**
+- curl works from the VM but Chrome shows an error
+- "Access Denied", CAPTCHA pages, or "Checking your browser..." messages
+- \`stealth: false\` in browser config (check with get_browser)
+
+**Solutions:** Use \`stealth: true\`, use profiles with real auth, or try shorter session lifetimes.
+
+### Browser Not Responding
+**Cause:** Chrome process crashed or hung
+**Check:** Supervisor logs for chromium restart events
+**Solutions:**
+1. Check if timeout was reached
+2. Look for memory issues in logs
+3. Create a new browser session
+
+### Page Not Loading
+**Cause:** Network, DNS, or proxy issues
+**Check:** 
+1. Test curl from inside VM
+2. Check /etc/resolv.conf for DNS config
+3. Verify proxy settings if using one
+
+### Live View Not Working
+**Cause:** Neko/WebRTC issues
+**Check:** Neko logs for connection errors
+**Solutions:**
+1. Check for firewall blocking WebRTC
+2. Verify browser is not in headless mode
+
+---
+
+## Expected Log Entries (Normal Operation)
+
+These are **normal** and don't indicate problems:
+- \`Failed to call method: org.freedesktop.DBus.Properties.GetAll\` - DBus permission (expected in container)
+- \`vkCreateInstance: Found no drivers\` - No GPU in VM (expected)
+- \`DEPRECATED_ENDPOINT\` for GCM - Google deprecation (harmless)
+- \`SharedImageManager::ProduceMemory\` errors - GPU-related (not critical)
+
+---
+
+## Debugging Checklist
+
+- [ ] Session exists and is active
+- [ ] Screenshot shows expected content (or reveals error)
+- [ ] Current URL is as expected
+- [ ] Supervisor logs show all services running
+- [ ] Network connectivity works (curl test)
+- [ ] No critical errors in chromium logs
+- [ ] Cookies/session state is correct
+
+---
+
+## Next Steps
+
+Based on your issue "${issue_description}", start with:
+
+1. **Get browser info** to confirm session is active
+2. **Take screenshot** to see current state
+3. **Check page URL** to see if on error page
+4. **Test network** if seeing connection errors
+5. **Review logs** for specific error patterns`;
+
+      return {
+        messages: [
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: debugGuide,
+            },
+          },
+        ],
+      };
+    },
+  );
+
   // Search Docs Tool
   server.tool(
     "search_docs",
