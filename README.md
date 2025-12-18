@@ -86,6 +86,32 @@ claude mcp add --transport http kernel https://mcp.onkernel.com/mcp
 
 4. Save. The server will appear in Tools.
 
+### OpenCode
+
+Add the following to your `~/.config/opencode/opencode.jsonc`:
+
+```jsonc
+{
+  "mcp": {
+    "kernel": {
+      "type": "remote",
+      "url": "https://mcp.onkernel.com/mcp"
+    }
+  }
+}
+```
+
+Then authenticate using the OpenCode CLI:
+
+```bash
+# Authenticate with Kernel
+opencode mcp auth kernel
+
+# If you need to re-authenticate, first logout then auth again
+opencode mcp logout kernel
+opencode mcp auth kernel
+```
+
 ### Goose
 
 Click [here](goose://extension?cmd=npx&arg=-y&arg=mcp-remote&arg=https%3A%2F%2Fmcp.onkernel.com%2Fmcp&timeout=300&id=kernel&name=Kernel&description=Access%20Kernel%27s%20cloud-based%20browsers%20via%20MCP) to install Kernel on Goose in one click.
