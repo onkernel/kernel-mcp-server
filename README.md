@@ -39,6 +39,33 @@ Use the streamable HTTP endpoint where supported for increased reliability. If y
 
 Kernel's server is a centrally hosted, authenticated remote MCP using OAuth 2.1 with dynamic client registration.
 
+## Quick Setup with Kernel CLI
+
+The fastest way to configure the MCP server is using the [Kernel CLI](https://github.com/onkernel/cli):
+
+```bash
+# Install the CLI
+brew install onkernel/tap/kernel
+# or: npm install -g @onkernel/cli
+
+# Install MCP for your tool
+kernel mcp install --target <target>
+```
+
+### Supported Targets
+
+| Target | Command |
+|--------|---------|
+| Cursor | `kernel mcp install --target cursor` |
+| Claude Desktop | `kernel mcp install --target claude` |
+| Claude Code | `kernel mcp install --target claude-code` |
+| VS Code | `kernel mcp install --target vscode` |
+| Windsurf | `kernel mcp install --target windsurf` |
+| Zed | `kernel mcp install --target zed` |
+| Goose | `kernel mcp install --target goose` |
+
+The CLI automatically locates your tool's config file and adds the Kernel MCP server configuration.
+
 ## Connect in your client
 
 ### Claude
