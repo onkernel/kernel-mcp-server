@@ -6,6 +6,7 @@ import {
 } from "@/lib/redis";
 import { resolveOrgId } from "@/lib/org-utils";
 import { REFRESH_TOKEN_ORG_TTL_SECONDS } from "@/lib/const";
+import { normalizeLocalhostUri } from "@/lib/auth-utils";
 
 export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
@@ -76,7 +77,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Step 3: Prepare parameters for Clerk token exchange
     const params = new URLSearchParams();
     for (const [key, value] of body.entries()) {
-      params.append(key, value.toString());
+      // Normalize redirect_uri to match what was likely used in authorization
+      // This ensures consistency between authorization and token exchange requests
+      if (key === "redirect_uri") {
+        const normalizedUri = normalizeLocalhostUri(value.toString());
+        params.append(key, normalizedUri);
+      } else {
+        params.append(key, value.toString());
+      }
     }
 
     const grantType = body.get("grant_type") as string;
@@ -151,7 +159,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!clerkTokenResponse.ok) {
       const errorData = await clerkTokenResponse.text();
-      console.error("[token] clerk token exchange failed");
+      console.error("[token] clerk token exchange failed", {
+        status: clerkTokenResponse.status,
+        errorData,
+      });
       return createErrorResponse(
         "invalid_grant",
         grantType === "refresh_token"

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
+import { expandLocalhostUris } from "../../lib/auth-utils";
 
 // Custom registration endpoint needed because Clerk doesn't support custom scopes
 // We only want "openid" scope instead of Clerk's default email/profile scopes
@@ -105,12 +106,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
   }
 
+  // Expand redirect URIs to include both localhost and 127.0.0.1 forms
+  // This ensures that clients can use either form in authorization requests
+  // and they will match the registered URIs, preventing mismatches
+  const expandedRedirectUris = expandLocalhostUris(redirect_uris);
+
   try {
     // Register the OAuth application with Clerk
     const clerk = await clerkClient();
     const oauthApp = await clerk.oauthApplications.create({
       name: client_name || "MCP Client",
-      redirectUris: redirect_uris,
+      redirectUris: expandedRedirectUris,
       scopes: scope ? scope : "openid",
       public: true,
     });
@@ -127,7 +133,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       contacts,
       tos_uri,
       policy_uri,
-      redirect_uris,
+      redirect_uris: expandedRedirectUris,
       token_endpoint_auth_method,
       grant_types,
       response_types,
